@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Dumbbell, Target, Users, Plus } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/loading-spinner'
+import { PageHeader } from '@/components/navigation/page-header'
+import Link from 'next/link'
 
 async function ExercisesContent() {
   const session = await getServerSession(authOptions)
@@ -24,7 +26,6 @@ async function ExercisesContent() {
       category: 'CHEST',
       muscleGroups: ['Chest', 'Triceps', 'Shoulders'],
       equipment: 'Barbell',
-      difficulty: 'INTERMEDIATE',
       instructions: 'Lie on bench, grip barbell, lower to chest, press up'
     },
     {
@@ -33,7 +34,6 @@ async function ExercisesContent() {
       category: 'BACK',
       muscleGroups: ['Back', 'Glutes', 'Hamstrings'],
       equipment: 'Barbell',
-      difficulty: 'ADVANCED',
       instructions: 'Stand with feet hip-width, grip bar, lift with legs and back'
     },
     {
@@ -42,7 +42,6 @@ async function ExercisesContent() {
       category: 'LEGS',
       muscleGroups: ['Quadriceps', 'Glutes', 'Calves'],
       equipment: 'Bodyweight',
-      difficulty: 'BEGINNER',
       instructions: 'Stand with feet shoulder-width, lower hips, return to standing'
     }
   ]
@@ -59,31 +58,23 @@ async function ExercisesContent() {
     return <Badge className={colors[category] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}>{category}</Badge>
   }
 
-  const getDifficultyBadge = (difficulty: string) => {
-    switch (difficulty) {
-      case 'BEGINNER':
-        return <Badge className="bg-green-500/20 text-green-400 border-green-500/30">Beginner</Badge>
-      case 'INTERMEDIATE':
-        return <Badge className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30">Intermediate</Badge>
-      case 'ADVANCED':
-        return <Badge className="bg-red-500/20 text-red-400 border-red-500/30">Advanced</Badge>
-      default:
-        return <Badge>{difficulty}</Badge>
-    }
-  }
+
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
-      <div className="mb-8 flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-hf-text mb-2">Exercise Management</h1>
-          <p className="text-hf-text-secondary">Manage exercise library and workout components</p>
-        </div>
-        <Button className="btn-gradient">
-          <Plus className="h-4 w-4 mr-2" />
-          Add Exercise
-        </Button>
-      </div>
+      <PageHeader 
+        title="Exercise Management"
+        description="Manage exercise library and workout components"
+        showBack={true}
+        backHref="/admin/dashboard"
+      >
+        <Link href="/admin/exercises/new">
+          <Button className="btn-gradient">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Exercise
+          </Button>
+        </Link>
+      </PageHeader>
 
       <div className="grid gap-6">
         {exercises?.map((exercise) => (
@@ -101,7 +92,6 @@ async function ExercisesContent() {
                 </div>
                 <div className="flex space-x-2">
                   {getCategoryBadge(exercise.category)}
-                  {getDifficultyBadge(exercise.difficulty)}
                 </div>
               </div>
             </CardHeader>
