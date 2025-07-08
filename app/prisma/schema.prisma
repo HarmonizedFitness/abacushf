@@ -1,0 +1,273 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+    output = "/home/ubuntu/harmonized-fitness/app/node_modules/.prisma/client"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+// User model with role-based access
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      UserRole @default(CLIENT)
+  image     String?
+  phone     String?
+  dateOfBirth DateTime?
+  fitnessGoals String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  bookings          Booking[]
+  creditPurchases   CreditPurchase[]
+  workoutSessions   WorkoutSession[]
+  personalRecords   PersonalRecord[]
+  notifications     Notification[]
+  favoriteExercises Exercise[]
+  accounts          Account[]
+  sessions          Session[]
+
+  @@map("users")
+}
+
+// NextAuth Account model
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// NextAuth Session model
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// NextAuth VerificationToken model
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verificationtokens")
+}
+
+// Booking system with session management
+model Booking {
+  id        String        @id @default(cuid())
+  userId    String
+  startTime DateTime
+  endTime   DateTime
+  status    BookingStatus @default(CONFIRMED)
+  notes     String?
+  creditsUsed Int         @default(1)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("bookings")
+}
+
+// Credit purchase and management system
+model CreditPurchase {
+  id            String        @id @default(cuid())
+  userId        String
+  credits       Int
+  amount        Decimal       @db.Decimal(10, 2)
+  stripePaymentIntentId String?
+  status        PaymentStatus @default(PENDING)
+  packageName   String
+  pricePerCredit Decimal      @db.Decimal(10, 2)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credit_purchases")
+}
+
+// Exercise library with categories
+model Exercise {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  instructions String?  @db.Text
+  category     String
+  muscleGroups String[] // Array of muscle groups
+  equipment    String?
+  imageUrl     String?
+  videoUrl     String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  workoutExercises WorkoutExercise[]
+  personalRecords  PersonalRecord[]
+  favoritedBy      User[]
+
+  @@map("exercises")
+}
+
+// Workout session tracking
+model WorkoutSession {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime
+  duration  Int      // Duration in minutes
+  notes     String?
+  status    WorkoutStatus @default(COMPLETED)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises WorkoutExercise[]
+
+  @@map("workout_sessions")
+}
+
+// Individual exercises within a workout session
+model WorkoutExercise {
+  id               String   @id @default(cuid())
+  workoutSessionId String
+  exerciseId       String
+  sets             Int
+  reps             Int
+  weight           Decimal? @db.Decimal(10, 2) // Weight in lbs
+  duration         Int?     // Duration in seconds for time-based exercises
+  restTime         Int?     // Rest time in seconds
+  notes            String?
+  order            Int      // Order of exercise in workout
+  createdAt        DateTime @default(now())
+
+  // Relationships
+  workoutSession WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@map("workout_exercises")
+}
+
+// Personal records tracking
+model PersonalRecord {
+  id         String   @id @default(cuid())
+  userId     String
+  exerciseId String
+  weight     Decimal? @db.Decimal(10, 2)
+  reps       Int?
+  duration   Int?     // Duration in seconds
+  volume     Decimal? @db.Decimal(10, 2) // Total volume (weight * reps)
+  notes      String?
+  achievedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  // Relationships
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, exerciseId]) // One PR per exercise per user
+  @@map("personal_records")
+}
+
+// Notification system
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  metadata  Json?            // Additional data in JSON format
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+// Business configuration for admin settings
+model BusinessConfig {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String
+  description   String?
+  category      String?  // e.g., "business_hours", "pricing", "features"
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("business_config")
+}
+
+// Enums
+enum UserRole {
+  CLIENT
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
+enum WorkoutStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  SKIPPED
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  BOOKING_REMINDER
+  WORKOUT_REMINDER
+  CREDIT_LOW
+  CREDIT_PURCHASED
+  PERSONAL_RECORD
+  SYSTEM_UPDATE
+  WELCOME
+}

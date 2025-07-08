@@ -1,0 +1,159 @@
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 7%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 18 89% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 63%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 18 89% 59%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 210 40% 7%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 12%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 18 89% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 0 0% 18%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 63%;
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 62% 65%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 18 89% 59%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-hf-dark text-hf-text font-inter;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    @apply bg-gradient-orange bg-clip-text text-transparent;
+  }
+  
+  .gradient-border {
+    @apply border-transparent bg-gradient-orange bg-clip-padding;
+  }
+  
+  .card-hover {
+    @apply transition-all duration-300 ease-in-out hover:shadow-lg hover:shadow-hf-orange/20 hover:scale-[1.02];
+  }
+  
+  .btn-gradient {
+    @apply bg-gradient-orange hover:bg-gradient-orange-hover text-white font-medium px-6 py-3 rounded-lg transition-all duration-300 ease-in-out transform hover:scale-105 shadow-lg;
+  }
+  
+  .input-focus {
+    @apply focus:ring-2 focus:ring-hf-orange focus:border-hf-orange;
+  }
+  
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Custom animations */
+@keyframes countUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-count-up {
+  animation: countUp 0.8s ease-out;
+}
+
+/* Loading spinner */
+.loading-spinner {
+  border: 2px solid #1E1E1E;
+  border-top: 2px solid #FF8C42;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Custom focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-hf-orange focus:ring-offset-2 focus:ring-offset-hf-dark;
+}
+
+/* Card animations */
+.card-enter {
+  animation: cardEnter 0.5s ease-out;
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Parallax effect for hero sections */
+.parallax {
+  background-attachment: fixed;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+@media (max-width: 768px) {
+  .parallax {
+    background-attachment: scroll;
+  }
+}
