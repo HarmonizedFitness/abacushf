@@ -27,6 +27,7 @@ import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
 import { formatDate, formatDuration } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
 
 interface WorkoutSession {
@@ -244,18 +245,19 @@ export default function AdminWorkoutsPage() {
       <RoleGuard allowedRoles={['ADMIN']}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-hf-text">Client Workouts</h1>
-              <p className="text-hf-text-secondary">Track and manage client training sessions</p>
-            </div>
+          <PageHeader
+            title="Client Workouts"
+            description="Track and manage client training sessions"
+            showHome={true}
+            showBack={false}
+          >
             <Button asChild className="btn-gradient">
               <Link href="/admin/workouts/new">
                 <Plus className="h-4 w-4 mr-2" />
                 Log Client Workout
               </Link>
             </Button>
-          </div>
+          </PageHeader>
 
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">

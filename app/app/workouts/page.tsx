@@ -26,6 +26,7 @@ import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
 import { formatDate, formatDuration } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
 
 interface WorkoutSession {
@@ -201,15 +202,12 @@ export default function WorkoutsPage() {
     <ProtectedLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-hf-text">
-              {isAdmin ? 'Client Workouts' : 'Workout History'}
-            </h1>
-            <p className="text-hf-text-secondary">
-              {isAdmin ? 'Track and manage client training sessions' : 'View your completed training sessions'}
-            </p>
-          </div>
+        <PageHeader
+          title={isAdmin ? 'Client Workouts' : 'Workout History'}
+          description={isAdmin ? 'Track and manage client training sessions' : 'View your completed training sessions'}
+          showHome={true}
+          showBack={false}
+        >
           {isAdmin && (
             <Button asChild className="btn-gradient">
               <Link href="/workouts/new">
@@ -218,7 +216,7 @@ export default function WorkoutsPage() {
               </Link>
             </Button>
           )}
-        </div>
+        </PageHeader>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

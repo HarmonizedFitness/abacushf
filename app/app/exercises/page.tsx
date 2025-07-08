@@ -21,6 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { Pagination } from '@/components/common/pagination'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Image from 'next/image'
 
 interface Exercise {
@@ -122,13 +123,12 @@ export default function ExercisesPage() {
     <ProtectedLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-hf-text">Exercise Library</h1>
-            <p className="text-hf-text-secondary">
-              Discover exercises to enhance your training routine
-            </p>
-          </div>
+        <PageHeader
+          title="Exercise Library"
+          description="Discover exercises to enhance your training routine"
+          showHome={true}
+          showBack={false}
+        >
           <Button
             variant={showFavoritesOnly ? 'default' : 'outline'}
             onClick={() => {
@@ -140,7 +140,7 @@ export default function ExercisesPage() {
             <Heart className={`h-4 w-4 mr-2 ${showFavoritesOnly ? 'fill-current' : ''}`} />
             {showFavoritesOnly ? 'Show All' : 'Favorites Only'}
           </Button>
-        </div>
+        </PageHeader>
 
         {/* Filters */}
         <div className="grid gap-4 md:grid-cols-4">

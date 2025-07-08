@@ -28,6 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from '@/components/ui/badge'
 import { LoadingState } from '@/components/common/status-message'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
 
 interface Client {
@@ -220,46 +221,38 @@ export default function NewWorkoutPage() {
       <RoleGuard allowedRoles={['ADMIN']}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button asChild variant="ghost" size="sm">
-                <Link href="/admin/workouts">
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Workouts
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-hf-text">Log Client Workout</h1>
-                <p className="text-hf-text-secondary">Record a training session for a client</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button 
-                variant="outline" 
-                onClick={() => router.push('/admin/workouts')}
-                className="border-hf-card"
-              >
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleSubmit} 
-                disabled={submitting}
-                className="btn-gradient"
-              >
-                {submitting ? (
-                  <>
-                    <Clock className="h-4 w-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Save Workout
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
+          <PageHeader
+            title="Log Client Workout"
+            description="Record a training session for a client"
+            showBack={true}
+            backHref="/admin/workouts"
+            backLabel="Back to Workouts"
+          >
+            <Button 
+              variant="outline" 
+              onClick={() => router.push('/admin/workouts')}
+              className="border-hf-card"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={submitting}
+              className="btn-gradient"
+            >
+              {submitting ? (
+                <>
+                  <Clock className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Workout
+                </>
+              )}
+            </Button>
+          </PageHeader>
 
           <div className="grid gap-6 lg:grid-cols-3">
             {/* Workout Details */}

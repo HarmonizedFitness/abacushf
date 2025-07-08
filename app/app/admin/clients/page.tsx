@@ -27,6 +27,7 @@ import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { formatDate, formatRelativeTime, getInitials } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
 
 interface Client {
@@ -260,18 +261,19 @@ export default function AdminClientsPage() {
     <ProtectedLayout requireRole="ADMIN">
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-hf-text">Client Management</h1>
-            <p className="text-hf-text-secondary">Manage your fitness clients and their accounts</p>
-          </div>
+        <PageHeader
+          title="Client Management"
+          description="Manage your fitness clients and their accounts"
+          showHome={true}
+          showBack={false}
+        >
           <Button asChild className="btn-gradient">
             <Link href="/admin/clients/new">
               <Plus className="h-4 w-4 mr-2" />
               Add Client
             </Link>
           </Button>
-        </div>
+        </PageHeader>
 
         {/* Stats Cards */}
         <div className="grid gap-6 md:grid-cols-4">

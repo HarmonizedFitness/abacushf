@@ -27,6 +27,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDate, formatRelativeTime } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
+import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
 
 interface PersonalRecord {
@@ -290,25 +291,26 @@ export default function PersonalRecordsPage() {
     <ProtectedLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-hf-text flex items-center">
-              <Trophy className="h-8 w-8 mr-3 text-hf-orange" />
-              Personal Records
-            </h1>
-            <p className="text-hf-text-secondary">
-              {isAdmin ? 'Track client achievements and milestones' : 'View your achievements and milestones'}
-            </p>
-          </div>
-          
+        <PageHeader
+          title="Personal Records"
+          description={isAdmin ? 'Track client achievements and milestones' : 'View your achievements and milestones'}
+          showHome={true}
+          showBack={false}
+        >
           {isAdmin && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="btn-gradient">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Record New PR
-                </Button>
-              </DialogTrigger>
+            <Button 
+              onClick={() => setDialogOpen(true)}
+              className="btn-gradient"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Record New PR
+            </Button>
+          )}
+        </PageHeader>
+
+        {/* Dialog component */}
+        {isAdmin && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogContent className="bg-hf-card border-hf-card">
               <DialogHeader>
                 <DialogTitle className="text-hf-text">Record Personal Record</DialogTitle>
@@ -389,8 +391,9 @@ export default function PersonalRecordsPage() {
               </div>
             </DialogContent>
           </Dialog>
-          )}
-        </div>
+        )}
+
+        
 
         {/* Stats Cards */}
         <div className="grid gap-4 md:grid-cols-4">

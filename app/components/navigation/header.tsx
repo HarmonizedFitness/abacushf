@@ -38,7 +38,7 @@ export function Header() {
 
   const isAdmin = session?.user?.role === 'ADMIN'
 
-  const navigation = isAdmin ? [
+  const adminNavigation = [
     {
       name: 'Dashboard',
       href: '/admin/dashboard',
@@ -50,14 +50,14 @@ export function Header() {
       icon: Users,
     },
     {
-      name: 'Analytics',
-      href: '/admin/analytics',
-      icon: BarChart3,
-    },
-    {
       name: 'Schedule',
       href: '/admin/bookings',
       icon: Calendar,
+    },
+    {
+      name: 'Workouts',
+      href: '/admin/workouts',
+      icon: Target,
     },
     {
       name: 'Exercises',
@@ -65,11 +65,13 @@ export function Header() {
       icon: Dumbbell,
     },
     {
-      name: 'Client Workouts',
-      href: '/admin/workouts',
-      icon: Target,
+      name: 'Analytics',
+      href: '/admin/analytics',
+      icon: BarChart3,
     },
-  ] : [
+  ]
+
+  const clientNavigation = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -96,6 +98,8 @@ export function Header() {
       icon: CreditCard,
     },
   ]
+
+  const navigation = isAdmin ? adminNavigation : clientNavigation
 
   const handleSignOut = async () => {
     await signOut({ callbackUrl: '/' })
