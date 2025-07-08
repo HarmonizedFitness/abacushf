@@ -151,10 +151,30 @@ model WorkoutSession {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises WorkoutExercise[]
+  groups    WorkoutExerciseGroup[]
 
   @@map("workout_sessions")
+}
+
+// Exercise groups for supersets, circuits, etc.
+model WorkoutExerciseGroup {
+  id               String    @id @default(cuid())
+  workoutSessionId String
+  type             GroupType @default(REGULAR)
+  name             String?   // Optional group name
+  notes            String?   // Per-group notes
+  order            Int       // Order in workout
+  rounds           Int?      // For circuits
+  restBetweenRounds Int?     // Rest between circuit rounds in seconds
+  createdAt        DateTime  @default(now())
+
+  // Relationships
+  workoutSession WorkoutSession    @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercises      WorkoutExercise[]
+
+  @@map("workout_exercise_groups")
 }
 
 // Individual exercises within a workout session
@@ -162,20 +182,38 @@ model WorkoutExercise {
   id               String   @id @default(cuid())
   workoutSessionId String
   exerciseId       String
-  sets             Int
-  reps             Int
-  weight           Decimal? @db.Decimal(10, 2) // Weight in lbs
-  duration         Int?     // Duration in seconds for time-based exercises
-  restTime         Int?     // Rest time in seconds
-  notes            String?
+  groupId          String?  // Reference to group (optional)
   order            Int      // Order of exercise in workout
+  orderInGroup     Int?     // Order within group (for supersets/circuits)
+  notes            String?  // Per-exercise notes
   createdAt        DateTime @default(now())
 
   // Relationships
-  workoutSession WorkoutSession @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
-  exercise       Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  workoutSession WorkoutSession         @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercise       Exercise               @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  group          WorkoutExerciseGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sets           WorkoutSet[]
 
   @@map("workout_exercises")
+}
+
+// Individual sets within each exercise
+model WorkoutSet {
+  id                String   @id @default(cuid())
+  workoutExerciseId String
+  setNumber         Int      // 1, 2, 3, etc.
+  reps              Int?
+  weight            Decimal? @db.Decimal(10, 2) // Weight in lbs
+  duration          Int?     // Duration in seconds for time-based exercises
+  restTime          Int?     // Rest time after this set in seconds
+  notes             String?  // Per-set notes
+  isDropSet         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+
+  // Relationships
+  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@map("workout_sets")
 }
 
 // Personal records tracking
@@ -270,4 +308,10 @@ enum NotificationType {
   PERSONAL_RECORD
   SYSTEM_UPDATE
   WELCOME
+}
+
+enum GroupType {
+  REGULAR
+  SUPERSET
+  CIRCUIT
 }

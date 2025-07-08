@@ -456,18 +456,28 @@ async function main() {
           create: [
             {
               exerciseId: 'bench-press',
-              sets: 4,
-              reps: 8,
-              weight: 135.0,
               order: 1,
               notes: 'Focused on form',
+              sets: {
+                create: [
+                  { setNumber: 1, reps: 8, weight: 135.0, restTime: 90 },
+                  { setNumber: 2, reps: 8, weight: 135.0, restTime: 90 },
+                  { setNumber: 3, reps: 8, weight: 135.0, restTime: 90 },
+                  { setNumber: 4, reps: 8, weight: 135.0, restTime: 90 },
+                ],
+              },
             },
             {
               exerciseId: 'push-ups',
-              sets: 3,
-              reps: 15,
               order: 2,
               notes: 'Burnout set',
+              sets: {
+                create: [
+                  { setNumber: 1, reps: 15, restTime: 60 },
+                  { setNumber: 2, reps: 15, restTime: 60 },
+                  { setNumber: 3, reps: 15, restTime: 60 },
+                ],
+              },
             },
           ],
         },
@@ -484,19 +494,29 @@ async function main() {
           create: [
             {
               exerciseId: 'squats',
-              sets: 5,
-              reps: 5,
-              weight: 225.0,
               order: 1,
               notes: 'Personal record!',
+              sets: {
+                create: [
+                  { setNumber: 1, reps: 5, weight: 225.0, restTime: 180 },
+                  { setNumber: 2, reps: 5, weight: 225.0, restTime: 180 },
+                  { setNumber: 3, reps: 5, weight: 225.0, restTime: 180 },
+                  { setNumber: 4, reps: 5, weight: 225.0, restTime: 180 },
+                  { setNumber: 5, reps: 5, weight: 225.0, restTime: 180 },
+                ],
+              },
             },
             {
               exerciseId: 'lunges',
-              sets: 3,
-              reps: 12,
-              weight: 25.0,
               order: 2,
               notes: 'Each leg',
+              sets: {
+                create: [
+                  { setNumber: 1, reps: 12, weight: 25.0, restTime: 90 },
+                  { setNumber: 2, reps: 12, weight: 25.0, restTime: 90 },
+                  { setNumber: 3, reps: 12, weight: 25.0, restTime: 90 },
+                ],
+              },
             },
           ],
         },
@@ -563,6 +583,45 @@ async function main() {
 
   // Create sample notifications
   const notifications = await Promise.all([
+    // Admin notifications
+    prisma.notification.create({
+      data: {
+        userId: adminUser.id,
+        type: 'BOOKING_CONFIRMED',
+        title: 'New Booking Confirmed',
+        message: 'Alice Johnson has booked a session for tomorrow at 9:00 AM',
+        isRead: false,
+        metadata: {
+          clientName: 'Alice Johnson',
+          bookingTime: '2024-07-09T09:00:00Z',
+        },
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: adminUser.id,
+        type: 'SYSTEM_UPDATE',
+        title: 'System Update Complete',
+        message: 'The application has been updated with new features and improvements',
+        isRead: false,
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: adminUser.id,
+        type: 'CREDIT_PURCHASED',
+        title: 'Credit Purchase Notification',
+        message: 'Carol Williams purchased 15 credits for $1,125',
+        isRead: true,
+        metadata: {
+          clientName: 'Carol Williams',
+          credits: 15,
+          amount: 1125,
+        },
+      },
+    }),
+
+    // Client notifications
     prisma.notification.create({
       data: {
         userId: clientUsers[0].id,
@@ -579,6 +638,28 @@ async function main() {
     }),
     prisma.notification.create({
       data: {
+        userId: clientUsers[0].id,
+        type: 'BOOKING_REMINDER',
+        title: 'Session Reminder',
+        message: 'Don\'t forget your training session tomorrow at 9:00 AM',
+        isRead: false,
+        metadata: {
+          bookingTime: '2024-07-09T09:00:00Z',
+        },
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: clientUsers[0].id,
+        type: 'CREDIT_LOW',
+        title: 'Credits Running Low',
+        message: 'You have 2 credits remaining. Consider purchasing more to continue training',
+        isRead: true,
+      },
+    }),
+
+    prisma.notification.create({
+      data: {
         userId: clientUsers[1].id,
         type: 'BOOKING_CONFIRMED',
         title: 'Session Confirmed',
@@ -588,11 +669,60 @@ async function main() {
     }),
     prisma.notification.create({
       data: {
+        userId: clientUsers[1].id,
+        type: 'WORKOUT_REMINDER',
+        title: 'Time for Your Workout! 💪',
+        message: 'Your leg day workout is scheduled to start in 30 minutes',
+        isRead: false,
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: clientUsers[1].id,
+        type: 'PERSONAL_RECORD',
+        title: 'New Squat PR! 🏆',
+        message: 'Amazing! You just hit 225 lbs x 5 reps on squats. Keep up the great work!',
+        isRead: false,
+        metadata: {
+          exerciseId: 'squats',
+          weight: 225,
+          reps: 5,
+        },
+      },
+    }),
+
+    prisma.notification.create({
+      data: {
         userId: clientUsers[2].id,
         type: 'WELCOME',
         title: 'Welcome to Harmonized Fitness! 💪',
         message: 'We\'re excited to help you achieve your fitness goals',
         isRead: false,
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: clientUsers[2].id,
+        type: 'CREDIT_PURCHASED',
+        title: 'Credits Added Successfully',
+        message: 'Your purchase of 15 credits has been processed. Ready to book your sessions!',
+        isRead: true,
+        metadata: {
+          credits: 15,
+          amount: 1125,
+        },
+      },
+    }),
+    prisma.notification.create({
+      data: {
+        userId: clientUsers[2].id,
+        type: 'BOOKING_REMINDER',
+        title: 'Upcoming Session',
+        message: 'Your full body strength and flexibility session is scheduled for next week',
+        isRead: false,
+        metadata: {
+          bookingTime: '2024-07-15T11:00:00Z',
+        },
       },
     }),
   ])

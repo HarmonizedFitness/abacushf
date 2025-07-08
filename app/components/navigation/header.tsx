@@ -11,7 +11,6 @@ import {
   X, 
   User, 
   LogOut,
-  Bell,
   Calendar,
   BarChart3,
   Users,
@@ -29,6 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Badge } from '@/components/ui/badge'
+import { NotificationDropdown } from '@/components/notifications/notification-dropdown'
 import { cn } from '@/lib/utils'
 
 export function Header() {
@@ -150,12 +150,7 @@ export function Header() {
         {/* Right Side */}
         <div className="flex items-center space-x-4">
           {/* Notifications */}
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <Badge className="absolute -top-1 -right-1 h-5 w-5 rounded-full p-0 text-xs bg-hf-orange border-0">
-              3
-            </Badge>
-          </Button>
+          <NotificationDropdown />
 
           {/* User Menu */}
           <DropdownMenu>
