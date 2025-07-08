@@ -23,18 +23,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge'
 import { 
   ChartContainer, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  Tooltip, 
-  LineChart, 
-  Line, 
-  PieChart, 
-  Pie, 
-  Cell,
-  AreaChart,
-  Area
+  SimpleBarChart, 
+  SimpleLineChart, 
+  SimplePieChart,
+  SimpleAreaChart
 } from '@/components/common/chart-container'
 import { StatCard } from '@/components/common/stat-card'
 import { LoadingState } from '@/components/common/status-message'
@@ -317,28 +309,12 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <AreaChart data={analyticsData?.revenueChart || []}>
-                  <XAxis 
-                    dataKey="month" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Area 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#FF8C42" 
-                    fill="#FF8C42"
-                    fillOpacity={0.1}
-                    strokeWidth={3}
-                  />
-                </AreaChart>
+                <SimpleAreaChart
+                  data={analyticsData?.revenueChart?.map(item => ({
+                    name: item.month,
+                    value: item.revenue
+                  })) || []}
+                />
               </ChartContainer>
             </CardContent>
           </Card>
@@ -355,22 +331,20 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <BarChart data={analyticsData?.clientEngagement || []}>
-                  <XAxis 
-                    dataKey="week" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Week', position: 'insideBottom', offset: -15, style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Bar dataKey="newClients" fill="#4FD1C5" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="sessionsBooked" fill="#FF8C42" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                <SimpleBarChart
+                  data={analyticsData?.clientEngagement?.map(item => ({
+                    name: item.week,
+                    value: item.sessionsBooked
+                  })) || []}
+                />
+                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                  <div className="text-hf-text-secondary">
+                    <span className="text-hf-orange">●</span> Sessions Booked
+                  </div>
+                  <div className="text-hf-text-secondary">
+                    <span className="text-hf-success">●</span> New Clients (see table below)
+                  </div>
+                </div>
               </ChartContainer>
             </CardContent>
           </Card>
@@ -390,38 +364,14 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={250}>
-                <PieChart>
-                  <Pie
-                    data={analyticsData?.packageDistribution || []}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {analyticsData?.packageDistribution?.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+                <SimplePieChart
+                  data={analyticsData?.packageDistribution?.map(item => ({
+                    name: item.name,
+                    value: item.value,
+                    color: item.color
+                  })) || []}
+                />
               </ChartContainer>
-              <div className="grid grid-cols-1 gap-2 mt-4">
-                {analyticsData?.packageDistribution?.map((entry, index) => (
-                  <div key={index} className="flex items-center justify-between text-xs">
-                    <div className="flex items-center">
-                      <div 
-                        className="w-3 h-3 rounded-full mr-2" 
-                        style={{ backgroundColor: entry.color }}
-                      />
-                      <span className="text-hf-text-secondary">{entry.name}</span>
-                    </div>
-                    <div className="text-hf-text font-medium">
-                      {formatCurrency(entry.revenue)}
-                    </div>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
@@ -437,20 +387,12 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={250}>
-                <BarChart 
-                  data={analyticsData?.exercisePopularity?.slice(0, 6) || []}
-                  layout="horizontal"
-                >
-                  <XAxis type="number" hide />
-                  <YAxis 
-                    type="category" 
-                    dataKey="name" 
-                    width={80}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <Tooltip />
-                  <Bar dataKey="usage" fill="#FF8C42" radius={[0, 4, 4, 0]} />
-                </BarChart>
+                <SimpleBarChart
+                  data={analyticsData?.exercisePopularity?.slice(0, 6)?.map(item => ({
+                    name: item.name,
+                    value: item.usage
+                  })) || []}
+                />
               </ChartContainer>
             </CardContent>
           </Card>
@@ -470,23 +412,12 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <BarChart data={analyticsData?.hourlyBookings || []}>
-                  <XAxis 
-                    dataKey="hour" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    angle={-45}
-                    textAnchor="end"
-                    height={60}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Bookings', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Bar dataKey="bookings" fill="#FF8C42" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                <SimpleBarChart
+                  data={analyticsData?.hourlyBookings?.map(item => ({
+                    name: item.hour,
+                    value: item.bookings
+                  })) || []}
+                />
               </ChartContainer>
             </CardContent>
           </Card>
@@ -503,55 +434,17 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <LineChart data={analyticsData?.clientRetention || []}>
-                  <XAxis 
-                    dataKey="cohort" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Retention %', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="month1" 
-                    stroke="#FF8C42" 
-                    strokeWidth={2}
-                    dot={{ fill: '#FF8C42', r: 3 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="month3" 
-                    stroke="#D65A31" 
-                    strokeWidth={2}
-                    dot={{ fill: '#D65A31', r: 3 }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="month6" 
-                    stroke="#4FD1C5" 
-                    strokeWidth={2}
-                    dot={{ fill: '#4FD1C5', r: 3 }}
-                  />
-                </LineChart>
+                <SimpleLineChart
+                  data={analyticsData?.clientRetention?.map(item => ({
+                    name: item.cohort,
+                    value: item.month1
+                  })) || []}
+                  showTrend={true}
+                />
+                <div className="mt-4 text-xs text-hf-text-secondary">
+                  Showing Month 1 retention rates. Additional cohort data available in detailed reports.
+                </div>
               </ChartContainer>
-              <div className="flex flex-wrap gap-4 mt-4 text-xs">
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-orange-500 rounded-full mr-2"></div>
-                  <span className="text-hf-text-secondary">Month 1</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-orange-600 rounded-full mr-2"></div>
-                  <span className="text-hf-text-secondary">Month 3</span>
-                </div>
-                <div className="flex items-center">
-                  <div className="w-3 h-3 bg-teal-400 rounded-full mr-2"></div>
-                  <span className="text-hf-text-secondary">Month 6</span>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

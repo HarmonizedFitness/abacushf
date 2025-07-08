@@ -19,7 +19,7 @@ import { StatCard } from '@/components/common/stat-card'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ChartContainer, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from '@/components/common/chart-container'
+import { ChartContainer, SimpleBarChart, SimpleLineChart, SimplePieChart } from '@/components/common/chart-container'
 import { LoadingState } from '@/components/common/status-message'
 import { formatCurrency, formatDate, formatRelativeTime } from '@/lib/utils'
 import Link from 'next/link'
@@ -223,27 +223,13 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <LineChart data={dashboardData?.revenueChart || []}>
-                  <XAxis 
-                    dataKey="month" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Month', position: 'insideBottom', offset: -15, style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Line 
-                    type="monotone" 
-                    dataKey="revenue" 
-                    stroke="#FF8C42" 
-                    strokeWidth={3}
-                    dot={{ fill: '#FF8C42', strokeWidth: 2, r: 4 }}
-                  />
-                </LineChart>
+                <SimpleLineChart
+                  data={dashboardData?.revenueChart?.map(item => ({
+                    name: item.month,
+                    value: item.revenue
+                  })) || []}
+                  showTrend={true}
+                />
               </ChartContainer>
             </CardContent>
           </Card>
@@ -261,21 +247,12 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <BarChart data={dashboardData?.clientActivityChart || []}>
-                  <XAxis 
-                    dataKey="day" 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Day', position: 'insideBottom', offset: -15, style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <YAxis 
-                    tickLine={false}
-                    tick={{ fontSize: 10 }}
-                    label={{ value: 'Sessions', angle: -90, position: 'insideLeft', style: { textAnchor: 'middle', fontSize: 11 } }}
-                  />
-                  <Tooltip />
-                  <Bar dataKey="sessions" fill="#FF8C42" radius={[4, 4, 0, 0]} />
-                </BarChart>
+                <SimpleBarChart
+                  data={dashboardData?.clientActivityChart?.map(item => ({
+                    name: item.day,
+                    value: item.sessions
+                  })) || []}
+                />
               </ChartContainer>
             </CardContent>
           </Card>
@@ -295,35 +272,14 @@ export default function AdminDashboardPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={250}>
-                <PieChart>
-                  <Pie
-                    data={dashboardData?.revenueByPackage || []}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    dataKey="value"
-                  >
-                    {dashboardData?.revenueByPackage?.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
+                <SimplePieChart
+                  data={dashboardData?.revenueByPackage?.map(item => ({
+                    name: item.name,
+                    value: item.value,
+                    color: item.color
+                  })) || []}
+                />
               </ChartContainer>
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {dashboardData?.revenueByPackage?.map((entry, index) => (
-                  <div key={index} className="flex items-center">
-                    <div 
-                      className="w-3 h-3 rounded-full mr-2" 
-                      style={{ backgroundColor: entry.color }}
-                    />
-                    <span className="text-xs text-hf-text-secondary">
-                      {entry.name} ({entry.value}%)
-                    </span>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
 
