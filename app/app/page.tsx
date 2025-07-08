@@ -274,16 +274,8 @@ export default function HomePage() {
               </div>
               <span className="text-xl font-bold text-hf-text">Harmonized Fitness</span>
             </div>
-            <div className="flex items-center space-x-6">
-              <Link href="/about" className="text-hf-text-secondary hover:text-hf-orange transition-colors">
-                About
-              </Link>
-              <Link href="/contact" className="text-hf-text-secondary hover:text-hf-orange transition-colors">
-                Contact
-              </Link>
-              <Link href="/privacy" className="text-hf-text-secondary hover:text-hf-orange transition-colors">
-                Privacy
-              </Link>
+            <div className="text-hf-text-secondary">
+              Premium Personal Training Platform
             </div>
           </div>
           <div className="mt-8 pt-8 border-t border-hf-card text-center text-hf-text-secondary">

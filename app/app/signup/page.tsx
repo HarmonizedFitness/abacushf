@@ -238,7 +238,7 @@ export default function SignUpPage() {
             </div>
 
             <div className="text-xs text-hf-text-secondary text-center">
-              By signing up, you agree to our terms of service and privacy policy.
+              Welcome to your fitness transformation journey.
             </div>
           </CardContent>
         </Card>
