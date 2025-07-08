@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import {
   Calendar,
   Clock,
@@ -58,6 +59,8 @@ export default function WorkoutsPage() {
 
   const router = useRouter()
   const { toast } = useToast()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'ADMIN'
 
   useEffect(() => {
     fetchWorkouts()
@@ -200,15 +203,21 @@ export default function WorkoutsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-hf-text">Workouts</h1>
-            <p className="text-hf-text-secondary">Track and manage your training sessions</p>
+            <h1 className="text-3xl font-bold text-hf-text">
+              {isAdmin ? 'Client Workouts' : 'Workout History'}
+            </h1>
+            <p className="text-hf-text-secondary">
+              {isAdmin ? 'Track and manage client training sessions' : 'View your completed training sessions'}
+            </p>
           </div>
-          <Button asChild className="btn-gradient">
-            <Link href="/workouts/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Log Workout
-            </Link>
-          </Button>
+          {isAdmin && (
+            <Button asChild className="btn-gradient">
+              <Link href="/workouts/new">
+                <Plus className="h-4 w-4 mr-2" />
+                Log Workout
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Filters */}
@@ -244,15 +253,26 @@ export default function WorkoutsPage() {
             description={
               searchQuery || statusFilter !== 'all'
                 ? "No workouts match your current filters"
-                : "Start your fitness journey by logging your first workout"
+                : isAdmin
+                  ? "Start logging workouts for your clients"
+                  : "Your trainer will log workouts during your training sessions"
             }
             action={
-              <Button asChild className="btn-gradient">
-                <Link href="/workouts/new">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Log Your First Workout
-                </Link>
-              </Button>
+              isAdmin ? (
+                <Button asChild className="btn-gradient">
+                  <Link href="/workouts/new">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Log Your First Workout
+                  </Link>
+                </Button>
+              ) : (
+                <Button asChild className="btn-gradient">
+                  <Link href="/schedule">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Book a Session
+                  </Link>
+                </Button>
+              )
             }
           />
         ) : (
@@ -274,26 +294,30 @@ export default function WorkoutsPage() {
                     View
                   </Link>
                 </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                >
-                  <Link href={`/workouts/${workout.id}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Link>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start text-hf-error hover:text-hf-error"
-                  onClick={() => setDeleteDialog({ open: true, workoutId: workout.id })}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Delete
-                </Button>
+                {isAdmin && (
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start"
+                  >
+                    <Link href={`/workouts/${workout.id}/edit`}>
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit
+                    </Link>
+                  </Button>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start text-hf-error hover:text-hf-error"
+                    onClick={() => setDeleteDialog({ open: true, workoutId: workout.id })}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                )}
               </>
             )}
           />

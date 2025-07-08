@@ -67,13 +67,23 @@ export default withAuth(
       return NextResponse.redirect(new URL('/dashboard', req.url))
     }
 
-    // Redirect admin users away from client pages
-    const isClientOnlyPage = req.nextUrl.pathname.startsWith('/dashboard') ||
-                            req.nextUrl.pathname.startsWith('/workouts') ||
-                            req.nextUrl.pathname.startsWith('/credits') ||
-                            req.nextUrl.pathname.startsWith('/schedule')
-    
-    if (isClientOnlyPage && token?.role === 'ADMIN') {
+    // Client restrictions - block access to exercise library entirely
+    if (req.nextUrl.pathname.startsWith('/exercises') && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard', req.url))
+    }
+
+    // Client restrictions - block access to workout logging (new workout creation)
+    if (req.nextUrl.pathname.startsWith('/workouts/new') && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/workouts', req.url))
+    }
+
+    // Client restrictions - block access to workout editing
+    if (req.nextUrl.pathname.match(/^\/workouts\/[^\/]+\/edit$/) && token?.role !== 'ADMIN') {
+      return NextResponse.redirect(new URL('/workouts', req.url))
+    }
+
+    // Redirect admin users to admin dashboard if they hit the root dashboard
+    if (req.nextUrl.pathname === '/dashboard' && token?.role === 'ADMIN') {
       return NextResponse.redirect(new URL('/admin/dashboard', req.url))
     }
 

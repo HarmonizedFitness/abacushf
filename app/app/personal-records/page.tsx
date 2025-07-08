@@ -2,6 +2,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import {
   Trophy,
   Medal,
@@ -70,6 +71,8 @@ export default function PersonalRecordsPage() {
   const [notes, setNotes] = useState('')
 
   const { toast } = useToast()
+  const { data: session } = useSession()
+  const isAdmin = session?.user?.role === 'ADMIN'
 
   useEffect(() => {
     Promise.all([fetchPersonalRecords(), fetchExercises()])
@@ -293,16 +296,19 @@ export default function PersonalRecordsPage() {
               <Trophy className="h-8 w-8 mr-3 text-hf-orange" />
               Personal Records
             </h1>
-            <p className="text-hf-text-secondary">Track your achievements and milestones</p>
+            <p className="text-hf-text-secondary">
+              {isAdmin ? 'Track client achievements and milestones' : 'View your achievements and milestones'}
+            </p>
           </div>
           
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="btn-gradient">
-                <Plus className="h-4 w-4 mr-2" />
-                Record New PR
-              </Button>
-            </DialogTrigger>
+          {isAdmin && (
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="btn-gradient">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Record New PR
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-hf-card border-hf-card">
               <DialogHeader>
                 <DialogTitle className="text-hf-text">Record Personal Record</DialogTitle>
@@ -383,6 +389,7 @@ export default function PersonalRecordsPage() {
               </div>
             </DialogContent>
           </Dialog>
+          )}
         </div>
 
         {/* Stats Cards */}
@@ -479,31 +486,42 @@ export default function PersonalRecordsPage() {
             description={
               searchQuery || categoryFilter !== 'all'
                 ? "No records match your current filters"
-                : "Start completing workouts to set your first personal records"
+                : isAdmin
+                  ? "Start logging workouts for clients to set personal records"
+                  : "Complete training sessions to set your first personal records"
             }
             action={
-              <div className="flex gap-2">
+              isAdmin ? (
+                <div className="flex gap-2">
+                  <Button asChild className="btn-gradient">
+                    <Link href="/workouts/new">
+                      <Target className="h-4 w-4 mr-2" />
+                      Log a Workout
+                    </Link>
+                  </Button>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="border-hf-card">
+                        <Plus className="h-4 w-4 mr-2" />
+                        Record PR Manually
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-hf-card border-hf-card">
+                      <DialogHeader>
+                        <DialogTitle className="text-hf-text">Record Personal Record</DialogTitle>
+                      </DialogHeader>
+                      {/* Same form content as above */}
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              ) : (
                 <Button asChild className="btn-gradient">
-                  <Link href="/workouts/new">
-                    <Target className="h-4 w-4 mr-2" />
-                    Log a Workout
+                  <Link href="/schedule">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Book a Session
                   </Link>
                 </Button>
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="border-hf-card">
-                      <Plus className="h-4 w-4 mr-2" />
-                      Record PR Manually
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-hf-card border-hf-card">
-                    <DialogHeader>
-                      <DialogTitle className="text-hf-text">Record Personal Record</DialogTitle>
-                    </DialogHeader>
-                    {/* Same form content as above */}
-                  </DialogContent>
-                </Dialog>
-              </div>
+              )
             }
           />
         ) : (

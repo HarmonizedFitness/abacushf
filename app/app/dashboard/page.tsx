@@ -162,15 +162,15 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start border-hf-card">
-                <Link href="/workouts/new">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Log a Workout
+                <Link href="/workouts">
+                  <Target className="h-4 w-4 mr-2" />
+                  View Workout History
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start border-hf-card">
-                <Link href="/exercises">
-                  <Dumbbell className="h-4 w-4 mr-2" />
-                  Browse Exercises
+                <Link href="/personal-records">
+                  <Trophy className="h-4 w-4 mr-2" />
+                  View Personal Records
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start border-hf-card">
@@ -267,10 +267,10 @@ export default function DashboardPage() {
               {dashboardData?.recentWorkouts?.length === 0 ? (
                 <EmptyState
                   title="No workouts logged"
-                  description="Start logging your workouts to track progress"
+                  description="Your trainer will log workouts during your training sessions"
                   action={
                     <Button asChild className="btn-gradient">
-                      <Link href="/workouts/new">Log Workout</Link>
+                      <Link href="/schedule">Book a Session</Link>
                     </Button>
                   }
                 />
@@ -336,10 +336,10 @@ export default function DashboardPage() {
               {dashboardData?.personalRecords?.length === 0 ? (
                 <EmptyState
                   title="No personal records yet"
-                  description="Complete workouts to start setting records"
+                  description="Complete training sessions to start setting records"
                   action={
                     <Button asChild className="btn-gradient">
-                      <Link href="/workouts/new">Log Workout</Link>
+                      <Link href="/schedule">Book a Session</Link>
                     </Button>
                   }
                 />

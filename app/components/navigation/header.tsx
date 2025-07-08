@@ -16,7 +16,8 @@ import {
   BarChart3,
   Users,
   Target,
-  CreditCard
+  CreditCard,
+  Trophy
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -63,6 +64,11 @@ export function Header() {
       href: '/admin/exercises',
       icon: Dumbbell,
     },
+    {
+      name: 'Client Workouts',
+      href: '/admin/workouts',
+      icon: Target,
+    },
   ] : [
     {
       name: 'Dashboard',
@@ -75,14 +81,14 @@ export function Header() {
       icon: Calendar,
     },
     {
-      name: 'Workouts',
+      name: 'Workout History',
       href: '/workouts',
       icon: Target,
     },
     {
-      name: 'Exercises',
-      href: '/exercises',
-      icon: Dumbbell,
+      name: 'Personal Records',
+      href: '/personal-records',
+      icon: Trophy,
     },
     {
       name: 'Credits',
