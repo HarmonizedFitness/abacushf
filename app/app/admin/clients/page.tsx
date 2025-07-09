@@ -15,6 +15,11 @@ import {
   Mail,
   Phone,
   MoreHorizontal,
+  Archive,
+  ArchiveRestore,
+  Settings,
+  TrendingUp,
+  Activity,
 } from 'lucide-react'
 import { ProtectedLayout } from '@/components/layout/protected-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -37,6 +42,8 @@ interface Client {
   phone?: string
   role: string
   isActive: boolean
+  isArchived: boolean
+  daysPerWeek?: number
   createdAt: string
   fitnessGoals?: string
   _count: {
@@ -53,14 +60,16 @@ export default function AdminClientsPage() {
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [viewArchived, setViewArchived] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [editingDPW, setEditingDPW] = useState<{ clientId: string; value: number } | null>(null)
 
   const { toast } = useToast()
 
   useEffect(() => {
     fetchClients()
-  }, [searchQuery, statusFilter, currentPage])
+  }, [searchQuery, statusFilter, currentPage, viewArchived])
 
   const fetchClients = async () => {
     try {
@@ -114,6 +123,84 @@ export default function AdminClientsPage() {
     }
   }
 
+  const archiveClient = async (clientId: string, isArchived: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isArchived: !isArchived,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        // Remove from current view since it's now archived/unarchived
+        setClients(clients.filter(client => client.id !== clientId))
+        toast({
+          title: isArchived ? 'Client restored' : 'Client archived',
+          description: `Client has been ${isArchived ? 'restored from archive' : 'moved to archive'}.`,
+        })
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update client archive status',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update client archive status',
+        variant: 'destructive',
+      })
+    }
+  }
+
+  const updateDPW = async (clientId: string, daysPerWeek: number) => {
+    try {
+      const response = await fetch(`/api/admin/clients/${clientId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          daysPerWeek,
+        }),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setClients(clients.map(client => 
+          client.id === clientId 
+            ? { ...client, daysPerWeek }
+            : client
+        ))
+        setEditingDPW(null)
+        toast({
+          title: 'Success',
+          description: 'Days per week updated successfully',
+        })
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to update days per week',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update days per week',
+        variant: 'destructive',
+      })
+    }
+  }
+
   const columns: Column<Client>[] = [
     {
       key: 'name',
@@ -149,6 +236,49 @@ export default function AdminClientsPage() {
         <div className="text-center">
           <span className="text-lg font-bold text-hf-orange">{value || 0}</span>
           <p className="text-xs text-hf-text-secondary">remaining</p>
+        </div>
+      ),
+    },
+    {
+      key: 'daysPerWeek',
+      title: 'DPW',
+      render: (value, client) => (
+        <div className="text-center">
+          {editingDPW?.clientId === client.id ? (
+            <div className="flex items-center space-x-1">
+              <Input
+                type="number"
+                min="1"
+                max="7"
+                value={editingDPW.value}
+                onChange={(e) => setEditingDPW({ ...editingDPW, value: parseInt(e.target.value) || 1 })}
+                className="w-16 h-8 text-center"
+              />
+              <Button
+                size="sm"
+                onClick={() => updateDPW(client.id, editingDPW.value)}
+                className="h-8 w-8 p-0"
+              >
+                ✓
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingDPW(null)}
+                className="h-8 w-8 p-0"
+              >
+                ✕
+              </Button>
+            </div>
+          ) : (
+            <div
+              className="cursor-pointer hover:bg-hf-card rounded p-1"
+              onClick={() => setEditingDPW({ clientId: client.id, value: value || 2 })}
+            >
+              <span className="text-lg font-bold text-hf-text">{value || 2}</span>
+              <p className="text-xs text-hf-text-secondary">days/week</p>
+            </div>
+          )}
         </div>
       ),
     },
@@ -209,7 +339,9 @@ export default function AdminClientsPage() {
                          (statusFilter === 'active' && client.isActive) ||
                          (statusFilter === 'inactive' && !client.isActive)
     
-    return matchesSearch && matchesStatus
+    const matchesArchived = client.isArchived === viewArchived
+    
+    return matchesSearch && matchesStatus && matchesArchived
   })
 
   if (loading) {
@@ -225,17 +357,38 @@ export default function AdminClientsPage() {
       <div className="space-y-6">
         {/* Header */}
         <PageHeader
-          title="Client Management"
-          description="Manage your fitness clients and their accounts"
+          title={viewArchived ? "Archived Clients" : "Client Management"}
+          description={viewArchived ? "View and manage archived client accounts" : "Manage your fitness clients and their accounts"}
           showHome={true}
           showBack={false}
         >
-          <Button asChild className="btn-gradient">
-            <Link href="/admin/clients/new">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Client
-            </Link>
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={() => setViewArchived(!viewArchived)}
+              variant="outline"
+              className="border-hf-card"
+            >
+              {viewArchived ? (
+                <>
+                  <Users className="h-4 w-4 mr-2" />
+                  Active Clients
+                </>
+              ) : (
+                <>
+                  <Archive className="h-4 w-4 mr-2" />
+                  Archived Clients
+                </>
+              )}
+            </Button>
+            {!viewArchived && (
+              <Button asChild className="btn-gradient">
+                <Link href="/admin/clients/new">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Client
+                </Link>
+              </Button>
+            )}
+          </div>
         </PageHeader>
 
         {/* Stats Cards */}
@@ -360,35 +513,68 @@ export default function AdminClientsPage() {
                     View Profile
                   </Link>
                 </Button>
+                {!viewArchived && (
+                  <>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <Link href={`/admin/clients/${client.id}/edit`}>
+                        <Edit className="h-4 w-4 mr-2" />
+                        Edit
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <Link href={`/admin/clients/${client.id}/credits`}>
+                        <CreditCard className="h-4 w-4 mr-2" />
+                        Manage Credits
+                      </Link>
+                    </Button>
+                    <Button
+                      asChild
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                    >
+                      <Link href={`/admin/clients/${client.id}/progress`}>
+                        <TrendingUp className="h-4 w-4 mr-2" />
+                        Progress Dashboard
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full justify-start"
+                      onClick={() => toggleClientStatus(client.id, client.isActive)}
+                    >
+                      {client.isActive ? 'Deactivate' : 'Activate'}
+                    </Button>
+                  </>
+                )}
                 <Button
-                  asChild
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-start"
+                  className="w-full justify-start text-hf-orange"
+                  onClick={() => archiveClient(client.id, client.isArchived)}
                 >
-                  <Link href={`/admin/clients/${client.id}/edit`}>
-                    <Edit className="h-4 w-4 mr-2" />
-                    Edit
-                  </Link>
-                </Button>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                >
-                  <Link href={`/admin/clients/${client.id}/credits`}>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Manage Credits
-                  </Link>
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full justify-start"
-                  onClick={() => toggleClientStatus(client.id, client.isActive)}
-                >
-                  {client.isActive ? 'Deactivate' : 'Activate'}
+                  {client.isArchived ? (
+                    <>
+                      <ArchiveRestore className="h-4 w-4 mr-2" />
+                      Restore Client
+                    </>
+                  ) : (
+                    <>
+                      <Archive className="h-4 w-4 mr-2" />
+                      Archive Client
+                    </>
+                  )}
                 </Button>
               </>
             )}

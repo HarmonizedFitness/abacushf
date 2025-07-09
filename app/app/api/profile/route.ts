@@ -1,29 +1,28 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
-const clientUpdateSchema = z.object({
-  name: z.string().min(1, 'Name is required').optional(),
+const profileUpdateSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
   phone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   fitnessGoals: z.string().optional(),
-  isActive: z.boolean().optional(),
-  isArchived: z.boolean().optional(),
-  daysPerWeek: z.number().min(1).max(7).optional(),
 })
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function GET() {
   try {
-    const user = await requireAdmin()
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const client = await prisma.user.findUnique({
-      where: { id: params.id },
+    // Get user profile with additional data
+    const profile = await prisma.user.findUnique({
+      where: { id: user.id },
       select: {
         id: true,
         email: true,
@@ -34,9 +33,8 @@ export async function GET(
         image: true,
         role: true,
         isActive: true,
-        isArchived: true,
-        daysPerWeek: true,
         createdAt: true,
+        daysPerWeek: true,
         _count: {
           select: {
             bookings: true,
@@ -48,14 +46,14 @@ export async function GET(
       },
     })
 
-    if (!client) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 })
+    if (!profile) {
+      return NextResponse.json({ success: false, error: 'Profile not found' }, { status: 404 })
     }
 
     // Get remaining credits
     const totalPurchased = await prisma.creditPurchase.aggregate({
       where: {
-        userId: client.id,
+        userId: user.id,
         status: 'COMPLETED',
       },
       _sum: {
@@ -65,7 +63,7 @@ export async function GET(
 
     const totalUsed = await prisma.booking.aggregate({
       where: {
-        userId: client.id,
+        userId: user.id,
         status: {
           in: ['CONFIRMED', 'COMPLETED'],
         },
@@ -82,48 +80,37 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        ...client,
+        ...profile,
         remainingCredits,
       },
     })
   } catch (error) {
-    console.error('Failed to fetch client:', error)
+    console.error('Failed to fetch profile:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch client' },
+      { success: false, error: 'Failed to fetch profile' },
       { status: 500 }
     )
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
+export async function PUT(request: NextRequest) {
   try {
-    const user = await requireAdmin()
-
-    const body = await request.json()
-    const validatedData = clientUpdateSchema.parse(body)
-
-    // Check if client exists
-    const existingClient = await prisma.user.findUnique({
-      where: { id: params.id },
-    })
-
-    if (!existingClient) {
-      return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 })
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Update client
-    const updatedClient = await prisma.user.update({
-      where: { id: params.id },
+    const body = await request.json()
+    const validatedData = profileUpdateSchema.parse(body)
+
+    // Update user profile
+    const updatedProfile = await prisma.user.update({
+      where: { id: user.id },
       data: {
-        ...(validatedData.name && { name: validatedData.name }),
-        ...(validatedData.phone !== undefined && { phone: validatedData.phone || null }),
-        ...(validatedData.fitnessGoals !== undefined && { fitnessGoals: validatedData.fitnessGoals || null }),
-        ...(validatedData.isActive !== undefined && { isActive: validatedData.isActive }),
-        ...(validatedData.isArchived !== undefined && { isArchived: validatedData.isArchived }),
-        ...(validatedData.daysPerWeek !== undefined && { daysPerWeek: validatedData.daysPerWeek }),
+        name: validatedData.name,
+        phone: validatedData.phone || null,
+        dateOfBirth: validatedData.dateOfBirth ? new Date(validatedData.dateOfBirth) : null,
+        fitnessGoals: validatedData.fitnessGoals || null,
       },
       select: {
         id: true,
@@ -135,9 +122,8 @@ export async function PATCH(
         image: true,
         role: true,
         isActive: true,
-        isArchived: true,
-        daysPerWeek: true,
         createdAt: true,
+        daysPerWeek: true,
         _count: {
           select: {
             bookings: true,
@@ -152,7 +138,7 @@ export async function PATCH(
     // Get remaining credits
     const totalPurchased = await prisma.creditPurchase.aggregate({
       where: {
-        userId: updatedClient.id,
+        userId: user.id,
         status: 'COMPLETED',
       },
       _sum: {
@@ -162,7 +148,7 @@ export async function PATCH(
 
     const totalUsed = await prisma.booking.aggregate({
       where: {
-        userId: updatedClient.id,
+        userId: user.id,
         status: {
           in: ['CONFIRMED', 'COMPLETED'],
         },
@@ -179,12 +165,12 @@ export async function PATCH(
     return NextResponse.json({
       success: true,
       data: {
-        ...updatedClient,
+        ...updatedProfile,
         remainingCredits,
       },
     })
   } catch (error) {
-    console.error('Failed to update client:', error)
+    console.error('Failed to update profile:', error)
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(
@@ -194,7 +180,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(
-      { success: false, error: 'Failed to update client' },
+      { success: false, error: 'Failed to update profile' },
       { status: 500 }
     )
   }
