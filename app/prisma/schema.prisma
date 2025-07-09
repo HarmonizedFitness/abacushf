@@ -88,6 +88,13 @@ model Booking {
   status    BookingStatus @default(CONFIRMED)
   notes     String?
   creditsUsed Int         @default(1)
+  
+  // Google Calendar integration
+  googleCalendarEventId String? @unique
+  lastSyncAt            DateTime?
+  syncStatus            SyncStatus @default(PENDING)
+  syncError             String?
+  
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
@@ -269,6 +276,53 @@ model BusinessConfig {
   @@map("business_config")
 }
 
+// Admin availability settings
+model AvailabilitySettings {
+  id            String              @id @default(cuid())
+  type          AvailabilityType
+  
+  // Working hours
+  dayOfWeek     Int?                // 0 = Sunday, 1 = Monday, etc.
+  startTime     String?             // Format: "HH:MM"
+  endTime       String?             // Format: "HH:MM"
+  
+  // Breaks
+  breakName     String?             // e.g., "Lunch Break"
+  
+  // Blackout dates
+  blackoutDate  DateTime?           // Specific date
+  blackoutStart DateTime?           // Start of blackout period
+  blackoutEnd   DateTime?           // End of blackout period
+  
+  // Recurring patterns
+  isRecurring   Boolean             @default(false)
+  recurringType RecurringType?      // DAILY, WEEKLY, MONTHLY
+  
+  // Metadata
+  title         String?             // Display title
+  description   String?             // Additional notes
+  isActive      Boolean             @default(true)
+  
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@map("availability_settings")
+}
+
+// Calendar sync log for tracking sync operations
+model CalendarSyncLog {
+  id            String        @id @default(cuid())
+  operation     SyncOperation
+  status        SyncStatus
+  bookingId     String?
+  eventId       String?
+  errorMessage  String?
+  details       Json?         // Additional sync details
+  createdAt     DateTime      @default(now())
+
+  @@map("calendar_sync_logs")
+}
+
 // Enums
 enum UserRole {
   CLIENT
@@ -314,4 +368,32 @@ enum GroupType {
   REGULAR
   SUPERSET
   CIRCUIT
+}
+
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  CONFLICT
+}
+
+enum AvailabilityType {
+  WORKING_HOURS
+  BREAK
+  BLACKOUT_DATE
+  BLACKOUT_PERIOD
+}
+
+enum RecurringType {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum SyncOperation {
+  CREATE
+  UPDATE
+  DELETE
+  SYNC
 }

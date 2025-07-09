@@ -63,15 +63,46 @@ export default function SchedulePage() {
 
   const fetchAvailableSlots = async () => {
     try {
-      const dateString = selectedDate.toISOString().split('T')[0]
-      const response = await fetch(`/api/schedule/available-slots?date=${dateString}`)
+      const startOfDay = new Date(selectedDate)
+      startOfDay.setHours(0, 0, 0, 0)
+      
+      const endOfDay = new Date(selectedDate)
+      endOfDay.setHours(23, 59, 59, 999)
+
+      const response = await fetch('/api/calendar/freebusy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          startDate: startOfDay.toISOString(),
+          endDate: endOfDay.toISOString(),
+          slotDuration: 60 // 60 minutes slots
+        })
+      })
+      
       const data = await response.json()
 
       if (data.success) {
-        setTimeSlots(data.data?.slots || [])
+        // Convert availability slots to time slots format
+        const availableSlots = data.data?.availableSlots || []
+        
+        const formattedSlots: TimeSlot[] = availableSlots.map((slot: any, index: number) => ({
+          id: `slot-${index}`,
+          startTime: slot.start,
+          endTime: slot.end,
+          duration: 60, // Default 60 minutes
+          isAvailable: slot.isAvailable
+        }))
+        
+        setTimeSlots(formattedSlots)
+      } else {
+        console.error('Failed to fetch availability:', data.error)
+        setTimeSlots([])
       }
     } catch (error) {
       console.error('Failed to fetch time slots:', error)
+      setTimeSlots([])
     }
   }
 
@@ -140,8 +171,8 @@ export default function SchedulePage() {
 
       if (response.ok) {
         toast({
-          title: 'Session Booked!',
-          description: 'Your training session has been successfully booked.',
+          title: 'Confirm Your Session',
+          description: 'Your session has been booked and added to our schedule. See you soon!',
         })
         setBookingDialog({ open: false })
         setBookingNotes('')
@@ -329,12 +360,12 @@ export default function SchedulePage() {
                             Booked
                           </Badge>
                         ) : slot.isAvailable && !isPastDate(selectedDate) ? (
-                          <Badge className="bg-hf-orange/10 text-hf-orange border-hf-orange/20">
-                            Available
+                          <Badge className="bg-hf-success/10 text-hf-success border-hf-success/20">
+                            ✅ Available
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-hf-text-secondary">
-                            {isPastDate(selectedDate) ? 'Past' : 'Unavailable'}
+                          <Badge variant="secondary" className="bg-red-500/10 text-red-400 border-red-500/20">
+                            {isPastDate(selectedDate) ? '❌ Past' : '❌ Unavailable'}
                           </Badge>
                         )}
                       </div>

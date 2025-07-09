@@ -11,6 +11,7 @@ import {
   Plus,
   Clock,
   Trophy,
+  RefreshCw,
 } from 'lucide-react'
 import { ProtectedLayout } from '@/components/layout/protected-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -145,7 +146,7 @@ export default function AdminDashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
               <Button asChild className="btn-gradient justify-start h-auto p-4">
                 <Link href="/admin/clients/new">
                   <div className="flex flex-col items-start">
@@ -166,6 +167,18 @@ export default function AdminDashboardPage() {
                       Manage Schedule
                     </div>
                     <span className="text-xs text-hf-text-secondary">View all bookings</span>
+                  </div>
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="border-hf-card justify-start h-auto p-4">
+                <Link href="/admin/calendar">
+                  <div className="flex flex-col items-start">
+                    <div className="flex items-center mb-1">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Calendar Sync
+                    </div>
+                    <span className="text-xs text-hf-text-secondary">Adjust Availability</span>
                   </div>
                 </Link>
               </Button>

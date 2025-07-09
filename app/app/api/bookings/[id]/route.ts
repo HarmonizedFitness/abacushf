@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth, isAdmin } from '@/lib/auth'
+import { googleCalendarService, updateBookingEvent } from '@/lib/google-calendar'
+import { calendarErrorHandler } from '@/lib/calendar-error-handler'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,6 +72,15 @@ export async function PATCH(
     // Get existing booking
     const existingBooking = await prisma.booking.findUnique({
       where: { id: bookingId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     })
 
     if (!existingBooking) {
@@ -154,6 +165,84 @@ export async function PATCH(
       }
     }
 
+    // Handle Google Calendar synchronization using comprehensive error handler
+    let syncStatus: 'PENDING' | 'SYNCED' | 'FAILED' = 'PENDING'
+    let syncError: string | null = null
+
+    if (existingBooking.googleCalendarEventId) {
+      // Update existing Google Calendar event
+      const calendarResult = await calendarErrorHandler.handleBookingUpdate({
+        id: bookingId,
+        eventId: existingBooking.googleCalendarEventId,
+        clientName: existingBooking.user.name,
+        clientEmail: existingBooking.user.email,
+        startTime: updateData.startTime || existingBooking.startTime,
+        endTime: updateData.endTime || existingBooking.endTime,
+        notes: updateData.notes !== undefined ? updateData.notes : existingBooking.notes
+      })
+
+      if (calendarResult.success) {
+        syncStatus = 'SYNCED'
+        
+        // Log successful sync
+        await prisma.calendarSyncLog.create({
+          data: {
+            operation: 'UPDATE',
+            status: 'SYNCED',
+            bookingId: bookingId,
+            eventId: existingBooking.googleCalendarEventId,
+            details: {
+              updates: updateData,
+              originalStartTime: existingBooking.startTime.toISOString(),
+              originalEndTime: existingBooking.endTime.toISOString()
+            }
+          }
+        })
+      } else {
+        syncError = calendarResult.error?.message || 'Unknown error'
+        syncStatus = 'FAILED'
+        console.error('Calendar update failed:', calendarResult.error)
+      }
+    } else {
+      // Create new Google Calendar event if one doesn't exist
+      const calendarResult = await calendarErrorHandler.handleBookingCreation({
+        id: bookingId,
+        clientName: existingBooking.user.name,
+        clientEmail: existingBooking.user.email,
+        startTime: updateData.startTime || existingBooking.startTime,
+        endTime: updateData.endTime || existingBooking.endTime,
+        notes: updateData.notes !== undefined ? updateData.notes : existingBooking.notes
+      })
+
+      if (calendarResult.success) {
+        updateData.googleCalendarEventId = calendarResult.eventId!
+        syncStatus = 'SYNCED'
+        
+        // Log successful sync
+        await prisma.calendarSyncLog.create({
+          data: {
+            operation: 'CREATE',
+            status: 'SYNCED',
+            bookingId: bookingId,
+            eventId: calendarResult.eventId!,
+            details: {
+              reason: 'Created during booking update',
+              updates: updateData
+            }
+          }
+        })
+      } else {
+        syncError = calendarResult.error?.message || 'Unknown error'
+        syncStatus = 'FAILED'
+        console.error('Calendar creation failed:', calendarResult.error)
+      }
+    }
+
+    // Add sync fields to update data
+    updateData.syncStatus = syncStatus
+    updateData.syncError = syncError
+    updateData.lastSyncAt = new Date()
+
     // Update booking
     const updatedBooking = await prisma.booking.update({
       where: { id: bookingId },
@@ -171,6 +260,39 @@ export async function PATCH(
 
     // Create notification for status changes
     if (status === 'CANCELLED') {
+      // Delete Google Calendar event if booking is cancelled
+      if (existingBooking.googleCalendarEventId) {
+        try {
+          await googleCalendarService.deleteEvent(existingBooking.googleCalendarEventId)
+          
+          // Log successful deletion
+          await prisma.calendarSyncLog.create({
+            data: {
+              operation: 'DELETE',
+              status: 'SYNCED',
+              bookingId: bookingId,
+              eventId: existingBooking.googleCalendarEventId,
+              details: {
+                reason: 'Booking cancelled'
+              }
+            }
+          })
+        } catch (error) {
+          console.error('Error deleting Google Calendar event:', error)
+          
+          // Log failed deletion
+          await prisma.calendarSyncLog.create({
+            data: {
+              operation: 'DELETE',
+              status: 'FAILED',
+              bookingId: bookingId,
+              eventId: existingBooking.googleCalendarEventId,
+              errorMessage: error?.toString() || 'Unknown error'
+            }
+          })
+        }
+      }
+      
       await prisma.notification.create({
         data: {
           userId: existingBooking.userId,
@@ -212,6 +334,15 @@ export async function DELETE(
     // Get existing booking
     const existingBooking = await prisma.booking.findUnique({
       where: { id: bookingId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     })
 
     if (!existingBooking) {
@@ -238,10 +369,40 @@ export async function DELETE(
       )
     }
 
+    // Delete Google Calendar event if it exists using comprehensive error handler
+    if (existingBooking.googleCalendarEventId) {
+      const calendarResult = await calendarErrorHandler.handleBookingDeletion(
+        bookingId,
+        existingBooking.googleCalendarEventId
+      )
+
+      if (calendarResult.success) {
+        // Log successful deletion
+        await prisma.calendarSyncLog.create({
+          data: {
+            operation: 'DELETE',
+            status: 'SYNCED',
+            bookingId: bookingId,
+            eventId: existingBooking.googleCalendarEventId,
+            details: {
+              reason: 'Booking cancelled via DELETE endpoint'
+            }
+          }
+        })
+      } else {
+        console.error('Calendar deletion failed:', calendarResult.error)
+        // Note: We don't fail the booking cancellation if calendar deletion fails
+      }
+    }
+
     // Update booking status to cancelled instead of deleting
     const cancelledBooking = await prisma.booking.update({
       where: { id: bookingId },
-      data: { status: 'CANCELLED' },
+      data: { 
+        status: 'CANCELLED',
+        syncStatus: 'SYNCED', // Mark as synced since we deleted the calendar event
+        lastSyncAt: new Date()
+      },
     })
 
     // Create notification
