@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import {
   ArrowLeft,
   Calendar,
@@ -92,6 +93,7 @@ export default function WorkoutDetailPage() {
   const params = useParams()
   const router = useRouter()
   const workoutId = params.id as string
+  const { data: session } = useSession()
   
   const [workout, setWorkout] = useState<WorkoutSession | null>(null)
   const [loading, setLoading] = useState(true)
@@ -99,6 +101,9 @@ export default function WorkoutDetailPage() {
   const [deleting, setDeleting] = useState(false)
   
   const { toast } = useToast()
+  
+  // Check if user is admin
+  const isAdmin = session?.user?.role === 'ADMIN'
 
   useEffect(() => {
     if (workoutId) {
@@ -299,22 +304,24 @@ export default function WorkoutDetailPage() {
               {formatDate(workout.date)} • {(workout.exercises?.length || 0) + (workout.groups?.reduce((total, group) => total + (group.exercises?.length || 0), 0) || 0)} exercises
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button asChild variant="outline" className="border-hf-card">
-              <Link href={`/workouts/${workout.id}/edit`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit
-              </Link>
-            </Button>
-            <Button 
-              variant="outline" 
-              className="border-hf-error text-hf-error hover:bg-hf-error hover:text-white"
-              onClick={() => setDeleteDialog(true)}
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Delete
-            </Button>
-          </div>
+          {isAdmin && (
+            <div className="flex items-center space-x-2">
+              <Button asChild variant="outline" className="border-hf-card">
+                <Link href={`/workouts/${workout.id}/edit`}>
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
+                </Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-hf-error text-hf-error hover:bg-hf-error hover:text-white"
+                onClick={() => setDeleteDialog(true)}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Overview Cards */}
@@ -527,17 +534,19 @@ export default function WorkoutDetailPage() {
           </CardContent>
         </Card>
 
-        {/* Delete Confirmation Dialog */}
-        <ConfirmationDialog
-          open={deleteDialog}
-          onOpenChange={setDeleteDialog}
-          title="Delete Workout"
-          description="Are you sure you want to delete this workout? This action cannot be undone and will remove all exercise data."
-          confirmText="Delete Workout"
-          variant="destructive"
-          onConfirm={handleDelete}
-          loading={deleting}
-        />
+        {/* Delete Confirmation Dialog - Only for admins */}
+        {isAdmin && (
+          <ConfirmationDialog
+            open={deleteDialog}
+            onOpenChange={setDeleteDialog}
+            title="Delete Workout"
+            description="Are you sure you want to delete this workout? This action cannot be undone and will remove all exercise data."
+            confirmText="Delete Workout"
+            variant="destructive"
+            onConfirm={handleDelete}
+            loading={deleting}
+          />
+        )}
       </div>
     </ProtectedLayout>
   )
