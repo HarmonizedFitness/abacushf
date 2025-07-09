@@ -8,6 +8,7 @@ export const dynamic = 'force-dynamic'
 
 const profileUpdateSchema = z.object({
   name: z.string().min(1, 'Name is required'),
+  email: z.string().email('Invalid email format'),
   phone: z.string().optional(),
 })
 
@@ -61,11 +62,26 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
     const validatedData = profileUpdateSchema.parse(body)
 
+    // Check if email is already taken by another user
+    if (validatedData.email !== user.email) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email: validatedData.email.toLowerCase() },
+      })
+      
+      if (existingUser && existingUser.id !== user.id) {
+        return NextResponse.json(
+          { success: false, error: 'Email is already in use by another user' },
+          { status: 409 }
+        )
+      }
+    }
+
     // Update admin profile
     const updatedProfile = await prisma.user.update({
       where: { id: user.id },
       data: {
         name: validatedData.name,
+        email: validatedData.email.toLowerCase(),
         phone: validatedData.phone || null,
       },
       select: {

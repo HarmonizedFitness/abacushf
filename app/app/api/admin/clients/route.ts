@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
           role: true,
           fitnessGoals: true,
           isActive: true,
+          isArchived: true,
+          daysPerWeek: true,
           createdAt: true,
           _count: {
             select: {

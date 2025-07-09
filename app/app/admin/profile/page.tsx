@@ -58,6 +58,7 @@ export default function AdminProfilePage() {
   const [changingPassword, setChangingPassword] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
+    email: '',
     phone: '',
   })
   const [passwordData, setPasswordData] = useState({
@@ -81,6 +82,7 @@ export default function AdminProfilePage() {
         setProfile(data.data)
         setFormData({
           name: data.data.name || '',
+          email: data.data.email || '',
           phone: data.data.phone || '',
         })
       } else {
@@ -208,6 +210,7 @@ export default function AdminProfilePage() {
   const handleCancel = () => {
     setFormData({
       name: profile?.name || '',
+      email: profile?.email || '',
       phone: profile?.phone || '',
     })
     setEditing(false)
@@ -364,11 +367,20 @@ export default function AdminProfilePage() {
 
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-hf-text">Email Address</Label>
-                    <div className="flex items-center space-x-2 p-3 bg-hf-dark rounded-lg border border-hf-card">
-                      <Mail className="h-4 w-4 text-hf-text-secondary" />
-                      <span className="text-hf-text">{profile.email}</span>
-                      <Badge variant="secondary" className="ml-auto">Read Only</Badge>
-                    </div>
+                    {editing ? (
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        className="bg-hf-dark border-hf-card"
+                      />
+                    ) : (
+                      <div className="flex items-center space-x-2 p-3 bg-hf-dark rounded-lg border border-hf-card">
+                        <Mail className="h-4 w-4 text-hf-text-secondary" />
+                        <span className="text-hf-text">{profile.email}</span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="space-y-2">
