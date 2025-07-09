@@ -78,7 +78,11 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const totalRevenue = creditPurchases.reduce((sum: number, purchase: any) => sum + (purchase.amount || 0), 0)
+    // Convert Decimal amounts to numbers and handle currency conversion (cents to dollars)
+    const totalRevenue = creditPurchases.reduce((sum: number, purchase: any) => {
+      const amount = purchase.amount ? Number(purchase.amount) / 100 : 0
+      return sum + amount
+    }, 0)
 
     // Get all-time revenue for comparison
     const allTimeCreditPurchases = await prisma.creditPurchase.findMany({
@@ -86,7 +90,10 @@ export async function GET(request: NextRequest) {
         amount: true
       }
     })
-    const allTimeRevenue = allTimeCreditPurchases.reduce((sum: number, purchase: any) => sum + (purchase.amount || 0), 0)
+    const allTimeRevenue = allTimeCreditPurchases.reduce((sum: number, purchase: any) => {
+      const amount = purchase.amount ? Number(purchase.amount) / 100 : 0
+      return sum + amount
+    }, 0)
 
     // Get session statistics
     const totalBookings = await prisma.booking.count({
@@ -157,7 +164,10 @@ export async function GET(request: NextRequest) {
 
       monthlyRevenue.push({
         month: format(monthStart, 'MMM'),
-        revenue: monthPurchases.reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
+        revenue: monthPurchases.reduce((sum: number, p: any) => {
+          const amount = p.amount ? Number(p.amount) / 100 : 0
+          return sum + amount
+        }, 0),
         clients: monthlyActiveClients,
         sessions: monthBookings
       })
@@ -298,12 +308,26 @@ export async function GET(request: NextRequest) {
     const topPerformers = clientStats
       .map((client: any) => {
         const sessions = client.bookings.length
-        const revenue = client.creditPurchases.reduce((sum: number, cp: any) => sum + (cp.amount || 0), 0)
+        const revenue = client.creditPurchases.reduce((sum: number, cp: any) => {
+          const amount = cp.amount ? Number(cp.amount) / 100 : 0
+          return sum + amount
+        }, 0)
+        
+        // Calculate real growth based on older purchases
+        const cutoffDate = new Date(startDate)
+        cutoffDate.setMonth(cutoffDate.getMonth() - 1)
+        const previousPurchases = client.creditPurchases.filter((cp: any) => new Date(cp.createdAt) < cutoffDate)
+        const previousRevenue = previousPurchases.reduce((sum: number, cp: any) => {
+          const amount = cp.amount ? Number(cp.amount) / 100 : 0
+          return sum + amount
+        }, 0)
+        const growth = previousRevenue > 0 ? ((revenue - previousRevenue) / previousRevenue) * 100 : revenue > 0 ? 100 : 0
+        
         return {
           name: client.name || 'Unknown',
           sessions,
           revenue,
-          growth: Math.floor(Math.random() * 50) + 10 // Simplified growth calculation
+          growth: Math.round(growth * 10) / 10 // Round to 1 decimal place
         }
       })
       .sort((a: any, b: any) => b.revenue - a.revenue)
@@ -324,7 +348,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const previousRevenueTotal = previousRevenue.reduce((sum: number, p: any) => sum + (p.amount || 0), 0)
+    const previousRevenueTotal = previousRevenue.reduce((sum: number, p: any) => {
+      const amount = p.amount ? Number(p.amount) / 100 : 0
+      return sum + amount
+    }, 0)
     const revenueGrowth = previousRevenueTotal > 0 ? 
       ((totalRevenue - previousRevenueTotal) / previousRevenueTotal) * 100 : 0
 
@@ -346,6 +373,53 @@ export async function GET(request: NextRequest) {
       ((activeClients - previousActiveClients) / previousActiveClients) * 100 : 0
 
     const averageRevenuePerClient = activeClients > 0 ? totalRevenue / activeClients : 0
+
+    // Calculate weekly client engagement data
+    const clientEngagement = []
+    for (let i = 3; i >= 0; i--) {
+      const weekStart = subDays(now, i * 7)
+      const weekEnd = subDays(now, (i - 1) * 7)
+      
+      const newClients = await prisma.user.count({
+        where: {
+          role: 'CLIENT',
+          createdAt: {
+            gte: weekStart,
+            lte: weekEnd
+          }
+        }
+      })
+      
+      const weeklyActiveClients = await prisma.user.count({
+        where: {
+          role: 'CLIENT',
+          bookings: {
+            some: {
+              startTime: {
+                gte: weekStart,
+                lte: weekEnd
+              }
+            }
+          }
+        }
+      })
+      
+      const weeklyBookings = await prisma.booking.count({
+        where: {
+          startTime: {
+            gte: weekStart,
+            lte: weekEnd
+          }
+        }
+      })
+      
+      clientEngagement.push({
+        week: `Week ${4 - i}`,
+        newClients,
+        activeClients: weeklyActiveClients,
+        sessionsBooked: weeklyBookings
+      })
+    }
 
     // Build response
     const analyticsData = {
@@ -375,12 +449,7 @@ export async function GET(request: NextRequest) {
       exercisePopularity: topExercises,
       hourlyBookings,
       topPerformers,
-      clientEngagement: [
-        { week: 'Week 1', newClients: Math.floor(Math.random() * 10), activeClients: Math.floor(activeClients * 0.8), sessionsBooked: Math.floor(totalBookings * 0.2) },
-        { week: 'Week 2', newClients: Math.floor(Math.random() * 10), activeClients: Math.floor(activeClients * 0.9), sessionsBooked: Math.floor(totalBookings * 0.3) },
-        { week: 'Week 3', newClients: Math.floor(Math.random() * 10), activeClients: Math.floor(activeClients * 0.85), sessionsBooked: Math.floor(totalBookings * 0.25) },
-        { week: 'Week 4', newClients: Math.floor(Math.random() * 10), activeClients: activeClients, sessionsBooked: Math.floor(totalBookings * 0.25) },
-      ],
+      clientEngagement,
       packageDistribution: [
         { name: 'Regular (10 credits)', value: 45, color: '#FF8C42', revenue: allTimeRevenue * 0.4 },
         { name: 'Committed (15 credits)', value: 30, color: '#D65A31', revenue: allTimeRevenue * 0.3 },

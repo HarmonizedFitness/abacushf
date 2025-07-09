@@ -9,56 +9,50 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-// User model with role-based access
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  password  String
-  role      UserRole @default(CLIENT)
-  image     String?
-  phone     String?
-  dateOfBirth DateTime?
-  fitnessGoals String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
+  id                String           @id @default(cuid())
+  email             String           @unique
+  name              String
+  password          String
+  role              UserRole         @default(CLIENT)
+  image             String?
+  phone             String?
+  dateOfBirth       DateTime?
+  fitnessGoals      String?
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  accounts          Account[]
   bookings          Booking[]
   creditPurchases   CreditPurchase[]
-  workoutSessions   WorkoutSession[]
-  personalRecords   PersonalRecord[]
   notifications     Notification[]
-  favoriteExercises Exercise[]
-  accounts          Account[]
+  personalRecords   PersonalRecord[]
   sessions          Session[]
+  workoutSessions   WorkoutSession[]
+  favoriteExercises Exercise[]       @relation("ExerciseToUser")
 
   @@map("users")
 }
 
-// NextAuth Account model
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
+  refresh_token     String?
+  access_token      String?
   expires_at        Int?
   token_type        String?
   scope             String?
-  id_token          String? @db.Text
+  id_token          String?
   session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
 }
 
-// NextAuth Session model
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
@@ -69,7 +63,6 @@ model Session {
   @@map("sessions")
 }
 
-// NextAuth VerificationToken model
 model VerificationToken {
   identifier String
   token      String   @unique
@@ -79,172 +72,144 @@ model VerificationToken {
   @@map("verificationtokens")
 }
 
-// Booking system with session management
 model Booking {
-  id        String        @id @default(cuid())
-  userId    String
-  startTime DateTime
-  endTime   DateTime
-  status    BookingStatus @default(CONFIRMED)
-  notes     String?
-  creditsUsed Int         @default(1)
-  
-  // Google Calendar integration
-  googleCalendarEventId String? @unique
+  id                    String        @id @default(cuid())
+  userId                String
+  startTime             DateTime
+  endTime               DateTime
+  status                BookingStatus @default(CONFIRMED)
+  notes                 String?
+  creditsUsed           Int           @default(1)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  googleCalendarEventId String?       @unique
   lastSyncAt            DateTime?
-  syncStatus            SyncStatus @default(PENDING)
   syncError             String?
-  
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  syncStatus            SyncStatus    @default(PENDING)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("bookings")
 }
 
-// Credit purchase and management system
 model CreditPurchase {
-  id            String        @id @default(cuid())
-  userId        String
-  credits       Int
-  amount        Decimal       @db.Decimal(10, 2)
+  id                    String        @id @default(cuid())
+  userId                String
+  credits               Int
+  amount                Decimal       @db.Decimal(10, 2)
   stripePaymentIntentId String?
-  status        PaymentStatus @default(PENDING)
-  packageName   String
-  pricePerCredit Decimal      @db.Decimal(10, 2)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                PaymentStatus @default(PENDING)
+  packageName           String
+  pricePerCredit        Decimal       @db.Decimal(10, 2)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("credit_purchases")
 }
 
-// Exercise library with categories
 model Exercise {
-  id           String   @id @default(cuid())
-  name         String
-  description  String?
-  instructions String?  @db.Text
-  category     String
-  muscleGroups String[] // Array of muscle groups
-  equipment    String?
-  imageUrl     String?
-  videoUrl     String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  // Relationships
-  workoutExercises WorkoutExercise[]
+  id               String            @id @default(cuid())
+  name             String
+  description      String?
+  instructions     String?
+  category         String
+  muscleGroups     String[]
+  equipment        String?
+  imageUrl         String?
+  videoUrl         String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
   personalRecords  PersonalRecord[]
-  favoritedBy      User[]
+  workoutExercises WorkoutExercise[]
+  favoritedBy      User[]            @relation("ExerciseToUser")
 
   @@map("exercises")
 }
 
-// Workout session tracking
 model WorkoutSession {
-  id        String   @id @default(cuid())
+  id        String                 @id @default(cuid())
   userId    String
   date      DateTime
-  duration  Int      // Duration in minutes
+  duration  Int
   notes     String?
-  status    WorkoutStatus @default(COMPLETED)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercises WorkoutExercise[]
+  status    WorkoutStatus          @default(COMPLETED)
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
   groups    WorkoutExerciseGroup[]
+  exercises WorkoutExercise[]
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("workout_sessions")
 }
 
-// Exercise groups for supersets, circuits, etc.
 model WorkoutExerciseGroup {
-  id               String    @id @default(cuid())
-  workoutSessionId String
-  type             GroupType @default(REGULAR)
-  name             String?   // Optional group name
-  notes            String?   // Per-group notes
-  order            Int       // Order in workout
-  rounds           Int?      // For circuits
-  restBetweenRounds Int?     // Rest between circuit rounds in seconds
-  createdAt        DateTime  @default(now())
-
-  // Relationships
-  workoutSession WorkoutSession    @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
-  exercises      WorkoutExercise[]
+  id                String            @id @default(cuid())
+  workoutSessionId  String
+  type              GroupType         @default(REGULAR)
+  name              String?
+  notes             String?
+  order             Int
+  rounds            Int?
+  restBetweenRounds Int?
+  createdAt         DateTime          @default(now())
+  workoutSession    WorkoutSession    @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  exercises         WorkoutExercise[]
 
   @@map("workout_exercise_groups")
 }
 
-// Individual exercises within a workout session
 model WorkoutExercise {
-  id               String   @id @default(cuid())
+  id               String                @id @default(cuid())
   workoutSessionId String
   exerciseId       String
-  groupId          String?  // Reference to group (optional)
-  order            Int      // Order of exercise in workout
-  orderInGroup     Int?     // Order within group (for supersets/circuits)
-  notes            String?  // Per-exercise notes
-  createdAt        DateTime @default(now())
-
-  // Relationships
-  workoutSession WorkoutSession         @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
-  exercise       Exercise               @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-  group          WorkoutExerciseGroup?  @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  sets           WorkoutSet[]
+  notes            String?
+  order            Int
+  createdAt        DateTime              @default(now())
+  groupId          String?
+  orderInGroup     Int?
+  exercise         Exercise              @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  group            WorkoutExerciseGroup? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  workoutSession   WorkoutSession        @relation(fields: [workoutSessionId], references: [id], onDelete: Cascade)
+  sets             WorkoutSet[]
 
   @@map("workout_exercises")
 }
 
-// Individual sets within each exercise
 model WorkoutSet {
-  id                String   @id @default(cuid())
+  id                String          @id @default(cuid())
   workoutExerciseId String
-  setNumber         Int      // 1, 2, 3, etc.
+  setNumber         Int
   reps              Int?
-  weight            Decimal? @db.Decimal(10, 2) // Weight in lbs
-  duration          Int?     // Duration in seconds for time-based exercises
-  restTime          Int?     // Rest time after this set in seconds
-  notes             String?  // Per-set notes
-  isDropSet         Boolean  @default(false)
-  createdAt         DateTime @default(now())
-
-  // Relationships
-  workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+  weight            Decimal?        @db.Decimal(10, 2)
+  duration          Int?
+  restTime          Int?
+  notes             String?
+  isDropSet         Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
 
   @@map("workout_sets")
 }
 
-// Personal records tracking
 model PersonalRecord {
   id         String   @id @default(cuid())
   userId     String
   exerciseId String
   weight     Decimal? @db.Decimal(10, 2)
   reps       Int?
-  duration   Int?     // Duration in seconds
-  volume     Decimal? @db.Decimal(10, 2) // Total volume (weight * reps)
+  duration   Int?
+  volume     Decimal? @db.Decimal(10, 2)
   notes      String?
   achievedAt DateTime @default(now())
   createdAt  DateTime @default(now())
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // Relationships
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  exercise Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, exerciseId]) // One PR per exercise per user
+  @@unique([userId, exerciseId])
   @@map("personal_records")
 }
 
-// Notification system
 model Notification {
   id        String           @id @default(cuid())
   userId    String
@@ -252,78 +217,61 @@ model Notification {
   title     String
   message   String
   isRead    Boolean          @default(false)
-  metadata  Json?            // Additional data in JSON format
+  metadata  Json?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
 
-// Business configuration for admin settings
 model BusinessConfig {
-  id            String   @id @default(cuid())
-  key           String   @unique
-  value         String
-  description   String?
-  category      String?  // e.g., "business_hours", "pricing", "features"
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("business_config")
 }
 
-// Admin availability settings
 model AvailabilitySettings {
-  id            String              @id @default(cuid())
+  id            String           @id @default(cuid())
   type          AvailabilityType
-  
-  // Working hours
-  dayOfWeek     Int?                // 0 = Sunday, 1 = Monday, etc.
-  startTime     String?             // Format: "HH:MM"
-  endTime       String?             // Format: "HH:MM"
-  
-  // Breaks
-  breakName     String?             // e.g., "Lunch Break"
-  
-  // Blackout dates
-  blackoutDate  DateTime?           // Specific date
-  blackoutStart DateTime?           // Start of blackout period
-  blackoutEnd   DateTime?           // End of blackout period
-  
-  // Recurring patterns
-  isRecurring   Boolean             @default(false)
-  recurringType RecurringType?      // DAILY, WEEKLY, MONTHLY
-  
-  // Metadata
-  title         String?             // Display title
-  description   String?             // Additional notes
-  isActive      Boolean             @default(true)
-  
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  dayOfWeek     Int?
+  startTime     String?
+  endTime       String?
+  breakName     String?
+  blackoutDate  DateTime?
+  blackoutStart DateTime?
+  blackoutEnd   DateTime?
+  isRecurring   Boolean          @default(false)
+  recurringType RecurringType?
+  title         String?
+  description   String?
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 
   @@map("availability_settings")
 }
 
-// Calendar sync log for tracking sync operations
 model CalendarSyncLog {
-  id            String        @id @default(cuid())
-  operation     SyncOperation
-  status        SyncStatus
-  bookingId     String?
-  eventId       String?
-  errorMessage  String?
-  details       Json?         // Additional sync details
-  createdAt     DateTime      @default(now())
+  id           String        @id @default(cuid())
+  operation    SyncOperation
+  status       SyncStatus
+  bookingId    String?
+  eventId      String?
+  errorMessage String?
+  details      Json?
+  createdAt    DateTime      @default(now())
 
   @@map("calendar_sync_logs")
 }
 
-// Enums
 enum UserRole {
   CLIENT
   ADMIN
