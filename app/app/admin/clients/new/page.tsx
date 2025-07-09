@@ -31,16 +31,49 @@ export default function NewClientPage() {
     setIsLoading(true)
 
     try {
-      // In a real app, this would create a new client
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
-      
-      toast({
-        title: "Client created successfully",
-        description: `${formData.firstName} ${formData.lastName} has been added to your client list.`,
+      const response = await fetch('/api/admin/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          goals: formData.goals,
+          experience: formData.experience,
+          notes: formData.notes,
+        }),
       })
-      
-      router.push('/admin/clients')
+
+      const data = await response.json()
+
+      if (data.success) {
+        toast({
+          title: "Client created successfully",
+          description: `${formData.firstName} ${formData.lastName} has been added to your client list.`,
+        })
+        
+        // Show temporary password if provided
+        if (data.data?.tempPassword) {
+          toast({
+            title: "Temporary Password Generated",
+            description: `Temporary password: ${data.data.tempPassword}. Please share this with your client.`,
+            duration: 10000,
+          })
+        }
+        
+        router.push('/admin/clients')
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "Failed to create client. Please try again.",
+          variant: "destructive",
+        })
+      }
     } catch (error) {
+      console.error('Failed to create client:', error)
       toast({
         title: "Error",
         description: "Failed to create client. Please try again.",
