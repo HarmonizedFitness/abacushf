@@ -67,6 +67,9 @@ interface WorkoutExerciseGroupProps {
   onAddSet: (exerciseId: string) => void
   onRemoveSet: (exerciseId: string, setId: string) => void
   onUpdateSet: (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => void
+  bodyWeightExercises?: Set<string>
+  currentBodyWeight?: number
+  onToggleBodyWeight?: (exerciseId: string) => void
 }
 
 export function WorkoutExerciseGroup({
@@ -76,6 +79,9 @@ export function WorkoutExerciseGroup({
   onAddSet,
   onRemoveSet,
   onUpdateSet,
+  bodyWeightExercises = new Set(),
+  currentBodyWeight = 0,
+  onToggleBodyWeight,
 }: WorkoutExerciseGroupProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -290,6 +296,25 @@ export function WorkoutExerciseGroup({
                      `${index + 1}`}
                   </Badge>
                 </div>
+                
+                {/* Body Weight Toggle for Grouped Exercises */}
+                {onToggleBodyWeight && (
+                  <div className="absolute top-2 right-2 z-10">
+                    <Button
+                      variant={bodyWeightExercises.has(exercise.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onToggleBodyWeight(exercise.id)}
+                      className={`text-xs px-2 py-1 ${
+                        bodyWeightExercises.has(exercise.id) 
+                          ? 'bg-blue-500 text-white' 
+                          : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                      }`}
+                    >
+                      BW
+                    </Button>
+                  </div>
+                )}
+                
                 <WorkoutExerciseItem
                   exercise={exercise}
                   selected={false}
@@ -308,6 +333,8 @@ export function WorkoutExerciseGroup({
                   onRemoveSet={(setId) => onRemoveSet(exercise.id, setId)}
                   onUpdateSet={(exerciseId, setId, updates) => onUpdateSet(exerciseId, setId, updates)}
                   isGrouped={true}
+                  isBodyWeight={bodyWeightExercises.has(exercise.id)}
+                  currentBodyWeight={currentBodyWeight}
                 />
               </div>
             ))}

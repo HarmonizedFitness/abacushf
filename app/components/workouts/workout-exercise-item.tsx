@@ -13,6 +13,9 @@ import {
   Target,
   Clock,
   Hash,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -60,6 +63,8 @@ interface WorkoutExerciseItemProps {
   onRemoveSet: (exerciseId: string, setId: string) => void
   onUpdateSet: (exerciseId: string, setId: string, updates: Partial<WorkoutSet>) => void
   isGrouped?: boolean
+  isBodyWeight?: boolean
+  currentBodyWeight?: number
 }
 
 export function WorkoutExerciseItem({
@@ -72,13 +77,39 @@ export function WorkoutExerciseItem({
   onRemoveSet,
   onUpdateSet,
   isGrouped = false,
+  isBodyWeight = false,
+  currentBodyWeight = 0,
 }: WorkoutExerciseItemProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [editNotes, setEditNotes] = useState(exercise.notes || '')
+  const [isExpanded, setIsExpanded] = useState(false)
+  const [isCompleted, setIsCompleted] = useState(false)
 
   const handleSaveNotes = () => {
     onUpdateExercise(exercise.id, { notes: editNotes.trim() || undefined })
     setIsEditingNotes(false)
+  }
+
+  const handleCompletedToggle = () => {
+    setIsCompleted(!isCompleted)
+    if (!isCompleted) {
+      // When marking as completed, collapse the exercise
+      setIsExpanded(false)
+    }
+  }
+
+  const handleExpandToggle = () => {
+    if (!isCompleted) {
+      setIsExpanded(!isExpanded)
+    }
+  }
+
+  const handleBodyWeightSet = (setId: string, updates: Partial<WorkoutSet>) => {
+    // For body weight exercises, set weight to current body weight if not already set
+    if (isBodyWeight && currentBodyWeight > 0 && !updates.weight) {
+      updates.weight = currentBodyWeight
+    }
+    onUpdateSet(exercise.id, setId, updates)
   }
 
   const handleCancelNotes = () => {
@@ -101,7 +132,7 @@ export function WorkoutExerciseItem({
   const stats = calculateExerciseStats()
 
   return (
-    <Card className={`bg-hf-card border-hf-card ${selected ? 'ring-2 ring-hf-orange' : ''} ${isGrouped ? 'ml-8' : ''}`}>
+    <Card className={`bg-hf-card border-hf-card ${selected ? 'ring-2 ring-hf-orange' : ''} ${isGrouped ? 'ml-8' : ''} ${isCompleted ? 'ring-2 ring-green-500' : ''} transition-all duration-300`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -116,20 +147,66 @@ export function WorkoutExerciseItem({
               </>
             )}
             
+            {/* Completed Checkbox */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCompletedToggle}
+              className={`p-1 ${isCompleted ? 'text-green-500' : 'text-hf-text-secondary'}`}
+            >
+              <CheckCircle className={`h-5 w-5 ${isCompleted ? 'fill-green-500' : ''}`} />
+            </Button>
+            
+            {/* Expand/Collapse Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleExpandToggle}
+              className={`p-1 ${isCompleted ? 'opacity-50 cursor-not-allowed' : ''}`}
+              disabled={isCompleted}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-hf-text-secondary" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-hf-text-secondary" />
+              )}
+            </Button>
+            
             <div>
               <div className="flex items-center space-x-2">
-                <CardTitle className="text-hf-text text-lg">{exercise.exercise.name}</CardTitle>
+                <CardTitle className={`text-hf-text text-lg ${isCompleted ? 'line-through opacity-75' : ''}`}>
+                  {exercise.exercise.name}
+                </CardTitle>
                 <Badge variant="secondary" className="text-xs">
                   {exercise.exercise.category}
                 </Badge>
+                {isBodyWeight && (
+                  <Badge variant="outline" className="text-xs bg-blue-100 text-blue-800 border-blue-300">
+                    BW
+                  </Badge>
+                )}
+                {isCompleted && (
+                  <Badge variant="outline" className="text-xs bg-green-100 text-green-800 border-green-300">
+                    ✓ Completed
+                  </Badge>
+                )}
               </div>
               
               <div className="flex items-center space-x-4 text-xs text-hf-text-secondary mt-1">
                 <span>{stats.totalSets} sets</span>
                 <span>{stats.totalReps} reps</span>
-                <span>{stats.totalVolume.toLocaleString()} lbs</span>
+                <span>
+                  {isBodyWeight && stats.totalVolume > 0 
+                    ? `${stats.totalVolume.toLocaleString()} lbs (BW)`
+                    : isBodyWeight 
+                      ? `BW × ${stats.totalReps}`
+                      : `${stats.totalVolume.toLocaleString()} lbs`
+                  }
+                </span>
                 {stats.avgWeight > 0 && (
-                  <span>avg {stats.avgWeight.toFixed(1)} lbs</span>
+                  <span>
+                    avg {isBodyWeight ? `${stats.avgWeight.toFixed(1)} lbs (BW)` : `${stats.avgWeight.toFixed(1)} lbs`}
+                  </span>
                 )}
                 {stats.dropSets > 0 && (
                   <Badge variant="secondary" className="text-xs">
@@ -174,9 +251,10 @@ export function WorkoutExerciseItem({
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        {/* Exercise Notes */}
-        <div className="mb-4">
+      {isExpanded && (
+        <CardContent className="pt-0">
+          {/* Exercise Notes */}
+          <div className="mb-4">
           {isEditingNotes ? (
             <div className="space-y-2">
               <Label className="text-xs text-hf-text-secondary">Exercise Notes</Label>
@@ -250,7 +328,8 @@ export function WorkoutExerciseItem({
           <Plus className="h-4 w-4 mr-2" />
           Add Set
         </Button>
-      </CardContent>
+        </CardContent>
+      )}
     </Card>
   )
 }

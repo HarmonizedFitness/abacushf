@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus,
@@ -119,9 +119,46 @@ export function AdvancedWorkoutForm({
   const [selectedExercises, setSelectedExercises] = useState<string[]>([])
   const [groupDialogOpen, setGroupDialogOpen] = useState(false)
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false)
+  const [currentBodyWeight, setCurrentBodyWeight] = useState<number>(0)
+  const [bodyWeightExercises, setBodyWeightExercises] = useState<Set<string>>(new Set())
 
   // Generate unique IDs
   const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9)
+
+  // Fetch current body weight from progress API
+  const fetchCurrentBodyWeight = async () => {
+    if (!selectedClientId) return
+    
+    try {
+      const response = await fetch(`/api/progress?userId=${selectedClientId}&type=BODY_WEIGHT&limit=1`)
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.data.length > 0) {
+          setCurrentBodyWeight(data.data[0].value)
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching body weight:', error)
+    }
+  }
+
+  // Fetch body weight when client is selected
+  React.useEffect(() => {
+    if (selectedClientId) {
+      fetchCurrentBodyWeight()
+    }
+  }, [selectedClientId])
+
+  // Toggle body weight for exercise
+  const toggleBodyWeight = (exerciseId: string) => {
+    const newBodyWeightExercises = new Set(bodyWeightExercises)
+    if (newBodyWeightExercises.has(exerciseId)) {
+      newBodyWeightExercises.delete(exerciseId)
+    } else {
+      newBodyWeightExercises.add(exerciseId)
+    }
+    setBodyWeightExercises(newBodyWeightExercises)
+  }
 
   // Add new exercise (ungrouped)
   const addExercise = (exercise: Exercise) => {
@@ -572,29 +609,100 @@ export function AdvancedWorkoutForm({
                     }
                     updateGroup(group.id, updatedGroup)
                   }}
+                  bodyWeightExercises={bodyWeightExercises}
+                  currentBodyWeight={currentBodyWeight}
+                  onToggleBodyWeight={toggleBodyWeight}
                 />
               ))}
 
               {/* Ungrouped Exercises */}
               {ungroupedExercises.map((exercise) => (
-                <WorkoutExerciseItem
-                  key={exercise.id}
-                  exercise={exercise}
-                  selected={selectedExercises.includes(exercise.id)}
-                  onSelect={(selected) => {
-                    if (selected) {
-                      setSelectedExercises([...selectedExercises, exercise.id])
-                    } else {
-                      setSelectedExercises(selectedExercises.filter(id => id !== exercise.id))
-                    }
-                  }}
-                  onUpdateExercise={updateExercise}
-                  onRemoveExercise={removeExercise}
-                  onAddSet={addSet}
-                  onRemoveSet={removeSet}
-                  onUpdateSet={updateSet}
-                />
+                <div key={exercise.id} className="relative">
+                  {/* Superset/Circuit Visual Indicators */}
+                  {selectedExercises.includes(exercise.id) && selectedExercises.length > 1 && (
+                    <div className={`absolute -left-2 top-0 bottom-0 w-1 rounded-full ${
+                      selectedExercises.length === 2 ? 'bg-green-500' : 'bg-blue-500'
+                    }`} />
+                  )}
+                  
+                  {/* Body Weight Toggle */}
+                  <div className="absolute top-2 right-2 z-10">
+                    <Button
+                      variant={bodyWeightExercises.has(exercise.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleBodyWeight(exercise.id)}
+                      className={`text-xs px-2 py-1 ${
+                        bodyWeightExercises.has(exercise.id) 
+                          ? 'bg-blue-500 text-white' 
+                          : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                      }`}
+                    >
+                      BW
+                    </Button>
+                  </div>
+                  
+                  <WorkoutExerciseItem
+                    exercise={exercise}
+                    selected={selectedExercises.includes(exercise.id)}
+                    onSelect={(selected) => {
+                      if (selected) {
+                        setSelectedExercises([...selectedExercises, exercise.id])
+                      } else {
+                        setSelectedExercises(selectedExercises.filter(id => id !== exercise.id))
+                      }
+                    }}
+                    onUpdateExercise={updateExercise}
+                    onRemoveExercise={removeExercise}
+                    onAddSet={addSet}
+                    onRemoveSet={removeSet}
+                    onUpdateSet={updateSet}
+                    isBodyWeight={bodyWeightExercises.has(exercise.id)}
+                    currentBodyWeight={currentBodyWeight}
+                  />
+                </div>
               ))}
+
+              {/* Superset/Circuit Group Indicators */}
+              {selectedExercises.length > 1 && (
+                <div className="mt-4 p-4 bg-hf-dark rounded-lg border border-hf-card">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className={`w-3 h-3 rounded-full ${
+                        selectedExercises.length === 2 ? 'bg-green-500' : 'bg-blue-500'
+                      }`} />
+                      <Badge variant="outline" className={`text-xs ${
+                        selectedExercises.length === 2 
+                          ? 'bg-green-100 text-green-800 border-green-300' 
+                          : 'bg-blue-100 text-blue-800 border-blue-300'
+                      }`}>
+                        {selectedExercises.length === 2 ? 'Superset' : 'Circuit'}
+                      </Badge>
+                      <span className="text-sm text-hf-text-secondary">
+                        {selectedExercises.length} exercises selected
+                      </span>
+                    </div>
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => setGroupDialogOpen(true)}
+                        variant="outline"
+                        size="sm"
+                        className="border-hf-orange text-hf-orange hover:bg-hf-orange hover:text-white"
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Create Group
+                      </Button>
+                      <Button
+                        onClick={() => setSelectedExercises([])}
+                        variant="outline"
+                        size="sm"
+                        className="border-hf-card text-hf-text-secondary hover:bg-hf-card"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Empty State */}
               {exerciseGroups.length === 0 && ungroupedExercises.length === 0 && (
@@ -604,6 +712,20 @@ export function AdvancedWorkoutForm({
                   <p className="text-sm text-hf-text-secondary">
                     Click "Add Exercise" to get started with your workout
                   </p>
+                </div>
+              )}
+
+              {/* Bottom Add Exercise Button */}
+              {(exerciseGroups.length > 0 || ungroupedExercises.length > 0) && (
+                <div className="mt-6 pt-4 border-t border-hf-card">
+                  <Button
+                    onClick={() => setExerciseDialogOpen(true)}
+                    className="btn-gradient w-full"
+                    size="lg"
+                  >
+                    <Plus className="h-5 w-5 mr-2" />
+                    Add Exercise
+                  </Button>
                 </div>
               )}
             </div>
