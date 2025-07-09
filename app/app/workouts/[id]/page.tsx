@@ -29,16 +29,44 @@ interface WorkoutSession {
   duration: number
   notes?: string
   status: string
+  groups: Array<{
+    id: string
+    name?: string
+    type: string
+    order: number
+    rounds?: number
+    restBetweenRounds?: number
+    exercises: Array<{
+      id: string
+      exerciseId: string
+      order: number
+      orderInGroup: number
+      notes?: string
+      exercise: {
+        id: string
+        name: string
+        description?: string
+        category: string
+        muscleGroups: string[]
+        equipment?: string
+      }
+      sets: Array<{
+        id: string
+        setNumber: number
+        reps?: number
+        weight?: number
+        duration?: number
+        restTime?: number
+        notes?: string
+        isDropSet: boolean
+      }>
+    }>
+  }>
   exercises: Array<{
     id: string
     exerciseId: string
-    sets: number
-    reps: number
-    weight?: number
-    duration?: number
-    restTime?: number
-    notes?: string
     order: number
+    notes?: string
     exercise: {
       id: string
       name: string
@@ -47,6 +75,16 @@ interface WorkoutSession {
       muscleGroups: string[]
       equipment?: string
     }
+    sets: Array<{
+      id: string
+      setNumber: number
+      reps?: number
+      weight?: number
+      duration?: number
+      restTime?: number
+      notes?: string
+      isDropSet: boolean
+    }>
   }>
 }
 
@@ -120,12 +158,29 @@ export default function WorkoutDetailPage() {
 
   const calculateTotalVolume = () => {
     if (!workout) return 0
-    return workout.exercises.reduce((total, ex) => {
-      if (ex.weight && ex.reps) {
-        return total + (ex.weight * ex.reps * ex.sets)
-      }
-      return total
-    }, 0)
+    let total = 0
+    
+    // Calculate volume from ungrouped exercises
+    workout.exercises?.forEach(ex => {
+      ex.sets?.forEach(set => {
+        if (set.weight && set.reps) {
+          total += Number(set.weight) * set.reps
+        }
+      })
+    })
+    
+    // Calculate volume from grouped exercises
+    workout.groups?.forEach(group => {
+      group.exercises?.forEach(ex => {
+        ex.sets?.forEach(set => {
+          if (set.weight && set.reps) {
+            total += Number(set.weight) * set.reps
+          }
+        })
+      })
+    })
+    
+    return total
   }
 
   const getStatusColor = (status: string) => {
@@ -136,6 +191,67 @@ export default function WorkoutDetailPage() {
       SKIPPED: 'bg-hf-error/10 text-hf-error border-hf-error/20',
     }
     return colors[status as keyof typeof colors] || 'bg-gray-500/10 text-gray-400'
+  }
+
+  const getAllExercises = () => {
+    if (!workout) return []
+    
+    const allExercises: Array<{
+      id: string
+      exercise: {
+        id: string
+        name: string
+        description?: string
+        category: string
+        muscleGroups: string[]
+        equipment?: string
+      }
+      sets: Array<{
+        id: string
+        setNumber: number
+        reps?: number
+        weight?: number
+        duration?: number
+        restTime?: number
+        notes?: string
+        isDropSet: boolean
+      }>
+      notes?: string
+      groupInfo?: {
+        name?: string
+        type: string
+        rounds?: number
+      }
+    }> = []
+
+    // Add ungrouped exercises
+    workout.exercises?.forEach((ex, index) => {
+      allExercises.push({
+        id: ex.id,
+        exercise: ex.exercise,
+        sets: ex.sets || [],
+        notes: ex.notes
+      })
+    })
+
+    // Add grouped exercises
+    workout.groups?.forEach((group) => {
+      group.exercises?.forEach((ex) => {
+        allExercises.push({
+          id: ex.id,
+          exercise: ex.exercise,
+          sets: ex.sets || [],
+          notes: ex.notes,
+          groupInfo: {
+            name: group.name,
+            type: group.type,
+            rounds: group.rounds
+          }
+        })
+      })
+    })
+
+    return allExercises
   }
 
   if (loading) {
@@ -180,7 +296,7 @@ export default function WorkoutDetailPage() {
               Workout Details
             </h1>
             <p className="text-hf-text-secondary">
-              {formatDate(workout.date)} • {workout.exercises.length} exercises
+              {formatDate(workout.date)} • {(workout.exercises?.length || 0) + (workout.groups?.reduce((total, group) => total + (group.exercises?.length || 0), 0) || 0)} exercises
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -268,7 +384,7 @@ export default function WorkoutDetailPage() {
                 {workout.status}
               </Badge>
               <p className="text-xs text-hf-text-secondary mt-1">
-                {workout.exercises.reduce((sum, ex) => sum + ex.sets, 0)} total sets
+                {(workout.exercises?.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0) || 0) + (workout.groups?.reduce((sum, group) => sum + (group.exercises?.reduce((exSum, ex) => exSum + (ex.sets?.length || 0), 0) || 0), 0) || 0)} total sets
               </p>
             </CardContent>
           </Card>
@@ -291,7 +407,7 @@ export default function WorkoutDetailPage() {
           <CardHeader>
             <CardTitle className="text-hf-text flex items-center">
               <Dumbbell className="h-5 w-5 mr-2 text-hf-orange" />
-              Exercises ({workout.exercises.length})
+              Exercises ({getAllExercises().length})
             </CardTitle>
             <CardDescription className="text-hf-text-secondary">
               Detailed breakdown of your training session
@@ -299,58 +415,94 @@ export default function WorkoutDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {workout.exercises
-                .sort((a, b) => a.order - b.order)
-                .map((exercise, index) => (
+              {getAllExercises().map((exercise, index) => {
+                const exerciseVolume = exercise.sets.reduce((total, set) => {
+                  if (set.weight && set.reps) {
+                    return total + (Number(set.weight) * set.reps)
+                  }
+                  return total
+                }, 0)
+
+                return (
                   <div key={exercise.id} className="p-4 bg-hf-dark rounded-lg border border-hf-card">
                     <div className="flex items-start justify-between mb-3">
                       <div>
                         <h4 className="font-medium text-hf-text text-lg">
                           {index + 1}. {exercise.exercise.name}
                         </h4>
-                        <p className="text-sm text-hf-text-secondary">
-                          {exercise.exercise.category}
-                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-sm text-hf-text-secondary">
+                            {exercise.exercise.category}
+                          </p>
+                          {exercise.groupInfo && (
+                            <Badge variant="outline" className="text-xs">
+                              {exercise.groupInfo.type} {exercise.groupInfo.name && `- ${exercise.groupInfo.name}`}
+                            </Badge>
+                          )}
+                        </div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {exercise.exercise.muscleGroups.map((muscle) => (
+                          {exercise.exercise.muscleGroups?.map((muscle) => (
                             <Badge key={muscle} variant="secondary" className="text-xs">
                               {muscle}
                             </Badge>
                           ))}
                         </div>
                       </div>
-                      {exercise.weight && exercise.reps && (
+                      {exerciseVolume > 0 && (
                         <div className="text-right">
                           <div className="text-lg font-bold text-hf-orange">
-                            {(exercise.weight * exercise.reps * exercise.sets).toLocaleString()} lbs
+                            {exerciseVolume.toLocaleString()} lbs
                           </div>
                           <div className="text-xs text-hf-text-secondary">Total Volume</div>
                         </div>
                       )}
                     </div>
 
-                    {/* Exercise Stats */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
-                      <div className="text-center p-3 bg-hf-card rounded-lg">
-                        <div className="text-xl font-bold text-hf-text">{exercise.sets}</div>
-                        <div className="text-xs text-hf-text-secondary">Sets</div>
+                    {/* Sets Details */}
+                    <div className="space-y-3 mb-3">
+                      <div className="text-sm font-medium text-hf-text">Sets ({exercise.sets.length})</div>
+                      <div className="grid gap-3">
+                        {exercise.sets.map((set, setIndex) => (
+                          <div key={set.id} className="flex items-center justify-between p-3 bg-hf-card rounded-lg">
+                            <div className="flex items-center space-x-4">
+                              <div className="text-sm font-medium text-hf-text">
+                                Set {set.setNumber}
+                              </div>
+                              {set.isDropSet && (
+                                <Badge variant="secondary" className="text-xs">
+                                  Drop Set
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center space-x-4 text-sm">
+                              {set.reps && (
+                                <div className="text-center">
+                                  <div className="font-bold text-hf-text">{set.reps}</div>
+                                  <div className="text-xs text-hf-text-secondary">reps</div>
+                                </div>
+                              )}
+                              {set.weight && (
+                                <div className="text-center">
+                                  <div className="font-bold text-hf-text">{set.weight}</div>
+                                  <div className="text-xs text-hf-text-secondary">lbs</div>
+                                </div>
+                              )}
+                              {set.duration && (
+                                <div className="text-center">
+                                  <div className="font-bold text-hf-text">{set.duration}</div>
+                                  <div className="text-xs text-hf-text-secondary">sec</div>
+                                </div>
+                              )}
+                              {set.restTime && (
+                                <div className="text-center">
+                                  <div className="font-bold text-hf-text">{set.restTime}</div>
+                                  <div className="text-xs text-hf-text-secondary">rest</div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                      <div className="text-center p-3 bg-hf-card rounded-lg">
-                        <div className="text-xl font-bold text-hf-text">{exercise.reps}</div>
-                        <div className="text-xs text-hf-text-secondary">Reps</div>
-                      </div>
-                      {exercise.weight && (
-                        <div className="text-center p-3 bg-hf-card rounded-lg">
-                          <div className="text-xl font-bold text-hf-text">{exercise.weight}</div>
-                          <div className="text-xs text-hf-text-secondary">Weight (lbs)</div>
-                        </div>
-                      )}
-                      {exercise.restTime && (
-                        <div className="text-center p-3 bg-hf-card rounded-lg">
-                          <div className="text-xl font-bold text-hf-text">{exercise.restTime}</div>
-                          <div className="text-xs text-hf-text-secondary">Rest (sec)</div>
-                        </div>
-                      )}
                     </div>
 
                     {/* Exercise Notes */}
@@ -369,7 +521,8 @@ export default function WorkoutDetailPage() {
                       </div>
                     )}
                   </div>
-                ))}
+                )
+              })}
             </div>
           </CardContent>
         </Card>

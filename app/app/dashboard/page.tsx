@@ -174,6 +174,12 @@ export default function DashboardPage() {
                 </Link>
               </Button>
               <Button asChild variant="outline" className="w-full justify-start border-hf-card">
+                <Link href="/progress">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Progress Dashboard
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start border-hf-card">
                 <Link href="/credits">
                   <CreditCard className="h-4 w-4 mr-2" />
                   Purchase Credits

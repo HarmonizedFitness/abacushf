@@ -103,6 +103,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
   })
 
   const isAdmin = session?.user?.role === 'ADMIN'
+  const canEdit = !readonly && isAdmin
 
   useEffect(() => {
     fetchProgressData()
@@ -400,7 +401,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
               Track your fitness journey with detailed measurements and trends
             </p>
           </div>
-          {!readonly && isAdmin && (
+          {canEdit && (
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
                 <Button className="btn-gradient">
@@ -711,7 +712,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
                   : `No entries found for ${PROGRESS_TYPES[selectedType as keyof typeof PROGRESS_TYPES]?.label}`
               }
               action={
-                !readonly && isAdmin ? (
+                canEdit ? (
                   <Button onClick={() => setShowAddDialog(true)} className="btn-gradient">
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Entry
@@ -726,7 +727,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
                 columns={columns}
                 searchable={false}
                 filterable={false}
-                actions={!readonly && isAdmin ? (entry) => (
+                actions={canEdit ? (entry) => (
                   <>
                     <Button
                       variant="ghost"
