@@ -104,82 +104,13 @@ export default function AdminAnalyticsPage() {
     try {
       setRefreshing(true)
       
-      // In a real app, you'd fetch from /api/admin/analytics
-      // For now, we'll simulate comprehensive analytics data
-      const mockData: AnalyticsData = {
-        overview: {
-          totalRevenue: 48750,
-          monthlyRevenue: 8200,
-          revenueGrowth: 15.3,
-          totalClients: 127,
-          activeClients: 89,
-          clientGrowth: 12.8,
-          totalSessions: 342,
-          averageSessionsPerClient: 2.7,
-          retentionRate: 78.5,
-          averageRevenuePerClient: 384,
-        },
-        revenueChart: [
-          { month: 'Jan', revenue: 5200, clients: 45, sessions: 58 },
-          { month: 'Feb', revenue: 6100, clients: 52, sessions: 67 },
-          { month: 'Mar', revenue: 5800, clients: 48, sessions: 63 },
-          { month: 'Apr', revenue: 7200, clients: 61, sessions: 78 },
-          { month: 'May', revenue: 8400, clients: 68, sessions: 89 },
-          { month: 'Jun', revenue: 8200, clients: 72, sessions: 85 },
-        ],
-        clientEngagement: [
-          { week: 'Week 1', newClients: 5, activeClients: 67, sessionsBooked: 23 },
-          { week: 'Week 2', newClients: 8, activeClients: 72, sessionsBooked: 28 },
-          { week: 'Week 3', newClients: 3, activeClients: 69, sessionsBooked: 25 },
-          { week: 'Week 4', newClients: 6, activeClients: 74, sessionsBooked: 31 },
-        ],
-        packageDistribution: [
-          { name: 'Regular (10 credits)', value: 45, color: '#FF8C42', revenue: 36000 },
-          { name: 'Committed (15 credits)', value: 30, color: '#D65A31', revenue: 33750 },
-          { name: 'Champion (25 credits)', value: 15, color: '#4FD1C5', revenue: 24375 },
-          { name: 'Starter (4 credits)', value: 10, color: '#60B5FF', revenue: 13600 },
-        ],
-        exercisePopularity: [
-          { name: 'Bench Press', usage: 156, category: 'Chest' },
-          { name: 'Squats', usage: 142, category: 'Legs' },
-          { name: 'Deadlift', usage: 128, category: 'Back' },
-          { name: 'Pull-ups', usage: 98, category: 'Back' },
-          { name: 'Shoulder Press', usage: 87, category: 'Shoulders' },
-          { name: 'Lunges', usage: 76, category: 'Legs' },
-          { name: 'Plank', usage: 65, category: 'Core' },
-          { name: 'Burpees', usage: 54, category: 'Cardio' },
-        ],
-        hourlyBookings: [
-          { hour: '6 AM', bookings: 8 },
-          { hour: '7 AM', bookings: 15 },
-          { hour: '8 AM', bookings: 22 },
-          { hour: '9 AM', bookings: 18 },
-          { hour: '10 AM', bookings: 12 },
-          { hour: '11 AM', bookings: 14 },
-          { hour: '12 PM', bookings: 16 },
-          { hour: '1 PM', bookings: 10 },
-          { hour: '2 PM', bookings: 8 },
-          { hour: '3 PM', bookings: 11 },
-          { hour: '4 PM', bookings: 19 },
-          { hour: '5 PM', bookings: 25 },
-          { hour: '6 PM', bookings: 28 },
-          { hour: '7 PM', bookings: 20 },
-        ],
-        clientRetention: [
-          { cohort: 'Q1 2024', month1: 100, month3: 85, month6: 72, month12: 65 },
-          { cohort: 'Q2 2024', month1: 100, month3: 88, month6: 76, month12: 0 },
-          { cohort: 'Q3 2024', month1: 100, month3: 91, month6: 0, month12: 0 },
-          { cohort: 'Q4 2024', month1: 100, month3: 0, month6: 0, month12: 0 },
-        ],
-        topPerformers: [
-          { name: 'Alice Johnson', sessions: 24, revenue: 1920, growth: 28 },
-          { name: 'Michael Chen', sessions: 22, revenue: 1760, growth: 15 },
-          { name: 'Sarah Davis', sessions: 20, revenue: 1600, growth: 42 },
-          { name: 'David Wilson', sessions: 18, revenue: 1440, growth: 33 },
-        ],
+      const response = await fetch(`/api/admin/analytics?timeRange=${timeRange}`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch analytics data')
       }
-
-      setAnalyticsData(mockData)
+      const data = await response.json()
+      
+      setAnalyticsData(data)
     } catch (error) {
       console.error('Failed to fetch analytics data:', error)
       toast({
@@ -247,53 +178,116 @@ export default function AdminAnalyticsPage() {
           </div>
         </div>
 
-        {/* Key Metrics */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <StatCard
-            title="Total Revenue"
-            value={formatCurrency(analyticsData?.overview.totalRevenue || 0)}
-            description="All time earnings"
-            icon={DollarSign}
-            trend={{
-              value: analyticsData?.overview.revenueGrowth || 0,
-              label: 'vs last period',
-              isPositive: true,
-            }}
-          />
-          <StatCard
-            title="Active Clients"
-            value={`${analyticsData?.overview.activeClients}/${analyticsData?.overview.totalClients}`}
-            description="Currently training"
-            icon={Users}
-            trend={{
-              value: analyticsData?.overview.clientGrowth || 0,
-              label: 'vs last period',
-              isPositive: true,
-            }}
-          />
-          <StatCard
-            title="Avg Revenue/Client"
-            value={formatCurrency(analyticsData?.overview.averageRevenuePerClient || 0)}
-            description="Per client lifetime"
-            icon={TrendingUp}
-            trend={{
-              value: 8.3,
-              label: 'vs last period',
-              isPositive: true,
-            }}
-          />
-          <StatCard
-            title="Retention Rate"
-            value={`${analyticsData?.overview.retentionRate || 0}%`}
-            description="Client retention"
-            icon={Target}
-            trend={{
-              value: 2.1,
-              label: 'vs last period',
-              isPositive: true,
-            }}
-          />
-        </div>
+        {/* Revenue Analytics Section */}
+        <Card className="bg-hf-card border-hf-card">
+          <CardHeader>
+            <CardTitle className="text-hf-text flex items-center">
+              <DollarSign className="h-5 w-5 mr-2 text-hf-orange" />
+              Revenue Analytics
+            </CardTitle>
+            <CardDescription className="text-hf-text-secondary">
+              Comprehensive revenue metrics and performance
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <StatCard
+                title="Total Revenue"
+                value={formatCurrency(analyticsData?.overview.totalRevenue || 0)}
+                description="All time earnings"
+                icon={DollarSign}
+                trend={{
+                  value: analyticsData?.overview.revenueGrowth || 0,
+                  label: 'vs last period',
+                  isPositive: (analyticsData?.overview.revenueGrowth || 0) >= 0,
+                }}
+              />
+              <StatCard
+                title="Period Revenue"
+                value={formatCurrency(analyticsData?.overview.monthlyRevenue || 0)}
+                description="Selected timeframe"
+                icon={TrendingUp}
+                trend={{
+                  value: analyticsData?.overview.revenueGrowth || 0,
+                  label: 'vs last period',
+                  isPositive: (analyticsData?.overview.revenueGrowth || 0) >= 0,
+                }}
+              />
+              <StatCard
+                title="Avg Revenue/Client"
+                value={formatCurrency(analyticsData?.overview.averageRevenuePerClient || 0)}
+                description="Per client value"
+                icon={Users}
+                trend={{
+                  value: 8.3,
+                  label: 'vs last period',
+                  isPositive: true,
+                }}
+              />
+              <StatCard
+                title="Active Clients"
+                value={`${analyticsData?.overview.activeClients || 0}/${analyticsData?.overview.totalClients || 0}`}
+                description="Currently training"
+                icon={Target}
+                trend={{
+                  value: analyticsData?.overview.clientGrowth || 0,
+                  label: 'vs last period',
+                  isPositive: (analyticsData?.overview.clientGrowth || 0) >= 0,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Client Engagement Section */}
+        <Card className="bg-hf-card border-hf-card">
+          <CardHeader>
+            <CardTitle className="text-hf-text flex items-center">
+              <Users className="h-5 w-5 mr-2 text-hf-orange" />
+              Client Engagement
+            </CardTitle>
+            <CardDescription className="text-hf-text-secondary">
+              Client activity and retention metrics
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <StatCard
+                title="Total Sessions"
+                value={analyticsData?.overview.totalSessions || 0}
+                description="In selected period"
+                icon={Activity}
+                trend={{
+                  value: 12.5,
+                  label: 'vs last period',
+                  isPositive: true,
+                }}
+              />
+              <StatCard
+                title="Avg Sessions/Client"
+                value={Number(analyticsData?.overview.averageSessionsPerClient || 0).toFixed(1)}
+                description="Per client average"
+                icon={BarChart3}
+                trend={{
+                  value: 5.2,
+                  label: 'vs last period',
+                  isPositive: true,
+                }}
+              />
+              <StatCard
+                title="Retention Rate"
+                value={`${Number(analyticsData?.overview.retentionRate || 0).toFixed(1)}%`}
+                description="Client retention"
+                icon={Target}
+                trend={{
+                  value: 2.1,
+                  label: 'vs last period',
+                  isPositive: true,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Revenue and Client Trends */}
         <div className="grid gap-6 lg:grid-cols-2">
@@ -309,12 +303,21 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <SimpleAreaChart
-                  data={analyticsData?.revenueChart?.map(item => ({
-                    name: item.month,
-                    value: item.revenue
-                  })) || []}
-                />
+                {analyticsData?.revenueChart?.length ? (
+                  <SimpleAreaChart
+                    data={analyticsData.revenueChart.map(item => ({
+                      name: item.month,
+                      value: item.revenue
+                    }))}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <DollarSign className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No revenue data available</p>
+                    </div>
+                  </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -331,20 +334,31 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <SimpleBarChart
-                  data={analyticsData?.clientEngagement?.map(item => ({
-                    name: item.week,
-                    value: item.sessionsBooked
-                  })) || []}
-                />
-                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
-                  <div className="text-hf-text-secondary">
-                    <span className="text-hf-orange">●</span> Sessions Booked
+                {analyticsData?.clientEngagement?.length ? (
+                  <>
+                    <SimpleBarChart
+                      data={analyticsData.clientEngagement.map(item => ({
+                        name: item.week,
+                        value: item.sessionsBooked
+                      }))}
+                    />
+                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                      <div className="text-hf-text-secondary">
+                        <span className="text-hf-orange">●</span> Sessions Booked
+                      </div>
+                      <div className="text-hf-text-secondary">
+                        <span className="text-hf-success">●</span> New Clients Weekly
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No client engagement data available</p>
+                    </div>
                   </div>
-                  <div className="text-hf-text-secondary">
-                    <span className="text-hf-success">●</span> New Clients (see table below)
-                  </div>
-                </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -364,13 +378,22 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={250}>
-                <SimplePieChart
-                  data={analyticsData?.packageDistribution?.map(item => ({
-                    name: item.name,
-                    value: item.value,
-                    color: item.color
-                  })) || []}
-                />
+                {analyticsData?.packageDistribution?.length ? (
+                  <SimplePieChart
+                    data={analyticsData.packageDistribution.map(item => ({
+                      name: item.name,
+                      value: item.value,
+                      color: item.color
+                    }))}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <BarChart3 className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No package data available</p>
+                    </div>
+                  </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -387,12 +410,21 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={250}>
-                <SimpleBarChart
-                  data={analyticsData?.exercisePopularity?.slice(0, 6)?.map(item => ({
-                    name: item.name,
-                    value: item.usage
-                  })) || []}
-                />
+                {analyticsData?.exercisePopularity?.length ? (
+                  <SimpleBarChart
+                    data={analyticsData.exercisePopularity.slice(0, 6).map(item => ({
+                      name: item.name,
+                      value: item.usage
+                    }))}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Target className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No exercise data available</p>
+                    </div>
+                  </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -412,12 +444,21 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <SimpleBarChart
-                  data={analyticsData?.hourlyBookings?.map(item => ({
-                    name: item.hour,
-                    value: item.bookings
-                  })) || []}
-                />
+                {analyticsData?.hourlyBookings?.length ? (
+                  <SimpleBarChart
+                    data={analyticsData.hourlyBookings.map(item => ({
+                      name: item.hour,
+                      value: item.bookings
+                    }))}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <Clock className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No booking data available</p>
+                    </div>
+                  </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -434,16 +475,27 @@ export default function AdminAnalyticsPage() {
             </CardHeader>
             <CardContent>
               <ChartContainer height={300}>
-                <SimpleLineChart
-                  data={analyticsData?.clientRetention?.map(item => ({
-                    name: item.cohort,
-                    value: item.month1
-                  })) || []}
-                  showTrend={true}
-                />
-                <div className="mt-4 text-xs text-hf-text-secondary">
-                  Showing Month 1 retention rates. Additional cohort data available in detailed reports.
-                </div>
+                {analyticsData?.clientRetention?.length ? (
+                  <>
+                    <SimpleLineChart
+                      data={analyticsData.clientRetention.map(item => ({
+                        name: item.cohort,
+                        value: item.month1
+                      }))}
+                      showTrend={true}
+                    />
+                    <div className="mt-4 text-xs text-hf-text-secondary">
+                      Showing Month 1 retention rates. Additional cohort data available in detailed reports.
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center">
+                      <TrendingUp className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                      <p className="text-hf-text-secondary">No retention data available</p>
+                    </div>
+                  </div>
+                )}
               </ChartContainer>
             </CardContent>
           </Card>
@@ -461,34 +513,41 @@ export default function AdminAnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {analyticsData?.topPerformers?.map((performer, index) => (
-                <div
-                  key={performer.name}
-                  className="p-4 bg-hf-dark rounded-lg border border-hf-card"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="text-lg font-bold text-hf-orange">#{index + 1}</div>
-                    <Badge className="bg-hf-success/10 text-hf-success border-hf-success/20">
-                      +{performer.growth}%
-                    </Badge>
-                  </div>
-                  <h3 className="font-medium text-hf-text mb-2">{performer.name}</h3>
-                  <div className="space-y-1 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-hf-text-secondary">Sessions:</span>
-                      <span className="text-hf-text font-medium">{performer.sessions}</span>
+            {analyticsData?.topPerformers?.length ? (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                {analyticsData.topPerformers.map((performer, index) => (
+                  <div
+                    key={performer.name}
+                    className="p-4 bg-hf-dark rounded-lg border border-hf-card"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="text-lg font-bold text-hf-orange">#{index + 1}</div>
+                      <Badge className="bg-hf-success/10 text-hf-success border-hf-success/20">
+                        +{performer.growth}%
+                      </Badge>
                     </div>
-                    <div className="flex justify-between">
-                      <span className="text-hf-text-secondary">Revenue:</span>
-                      <span className="text-hf-text font-medium">
-                        {formatCurrency(performer.revenue)}
-                      </span>
+                    <h3 className="font-medium text-hf-text mb-2">{performer.name}</h3>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-hf-text-secondary">Sessions:</span>
+                        <span className="text-hf-text font-medium">{performer.sessions}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-hf-text-secondary">Revenue:</span>
+                        <span className="text-hf-text font-medium">
+                          {formatCurrency(performer.revenue)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Trophy className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                <p className="text-hf-text-secondary">No top performers data available</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
