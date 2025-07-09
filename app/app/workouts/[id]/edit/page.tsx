@@ -31,17 +31,24 @@ interface Exercise {
   equipment: string
 }
 
-interface WorkoutExercise {
+interface WorkoutSet {
   id?: string
-  exerciseId: string
-  exerciseName: string
-  sets: number
+  setNumber: number
   reps: number
   weight: number | null
   duration: number | null
   restTime: number | null
   notes: string
+  isDropSet: boolean
+}
+
+interface WorkoutExercise {
+  id?: string
+  exerciseId: string
+  exerciseName: string
+  notes: string
   order: number
+  sets: WorkoutSet[]
 }
 
 interface WorkoutSession {
@@ -53,13 +60,9 @@ interface WorkoutSession {
   exercises: Array<{
     id: string
     exerciseId: string
-    sets: number
-    reps: number
-    weight?: number
-    duration?: number
-    restTime?: number
     notes?: string
     order: number
+    sets: WorkoutSet[]
     exercise: {
       id: string
       name: string
@@ -111,13 +114,18 @@ export default function EditWorkoutPage() {
           id: ex.id,
           exerciseId: ex.exerciseId,
           exerciseName: ex.exercise.name,
-          sets: ex.sets,
-          reps: ex.reps,
-          weight: ex.weight,
-          duration: ex.duration,
-          restTime: ex.restTime,
           notes: ex.notes || '',
           order: ex.order,
+          sets: ex.sets.map((set: any) => ({
+            id: set.id,
+            setNumber: set.setNumber,
+            reps: set.reps,
+            weight: set.weight,
+            duration: set.duration,
+            restTime: set.restTime,
+            notes: set.notes || '',
+            isDropSet: set.isDropSet || false,
+          })),
         }))
         setWorkoutExercises(exercises)
       } else {
@@ -156,13 +164,37 @@ export default function EditWorkoutPage() {
     const newWorkoutExercise: WorkoutExercise = {
       exerciseId: exercise.id,
       exerciseName: exercise.name,
-      sets: 3,
-      reps: 10,
-      weight: null,
-      duration: null,
-      restTime: 60,
       notes: '',
       order: workoutExercises.length + 1,
+      sets: [
+        {
+          setNumber: 1,
+          reps: 10,
+          weight: null,
+          duration: null,
+          restTime: 60,
+          notes: '',
+          isDropSet: false,
+        },
+        {
+          setNumber: 2,
+          reps: 10,
+          weight: null,
+          duration: null,
+          restTime: 60,
+          notes: '',
+          isDropSet: false,
+        },
+        {
+          setNumber: 3,
+          reps: 10,
+          weight: null,
+          duration: null,
+          restTime: 60,
+          notes: '',
+          isDropSet: false,
+        },
+      ],
     }
 
     setWorkoutExercises([...workoutExercises, newWorkoutExercise])
@@ -172,6 +204,44 @@ export default function EditWorkoutPage() {
   const updateExercise = (index: number, field: keyof WorkoutExercise, value: any) => {
     const updated = [...workoutExercises]
     updated[index] = { ...updated[index], [field]: value }
+    setWorkoutExercises(updated)
+  }
+
+  const addSet = (exerciseIndex: number) => {
+    const updated = [...workoutExercises]
+    const exercise = updated[exerciseIndex]
+    const newSet: WorkoutSet = {
+      setNumber: exercise.sets.length + 1,
+      reps: 10,
+      weight: null,
+      duration: null,
+      restTime: 60,
+      notes: '',
+      isDropSet: false,
+    }
+    exercise.sets.push(newSet)
+    setWorkoutExercises(updated)
+  }
+
+  const removeSet = (exerciseIndex: number, setIndex: number) => {
+    const updated = [...workoutExercises]
+    const exercise = updated[exerciseIndex]
+    if (exercise.sets.length > 1) {
+      exercise.sets.splice(setIndex, 1)
+      // Renumber remaining sets
+      exercise.sets.forEach((set, index) => {
+        set.setNumber = index + 1
+      })
+      setWorkoutExercises(updated)
+    }
+  }
+
+  const updateSet = (exerciseIndex: number, setIndex: number, field: keyof WorkoutSet, value: any) => {
+    const updated = [...workoutExercises]
+    updated[exerciseIndex].sets[setIndex] = { 
+      ...updated[exerciseIndex].sets[setIndex], 
+      [field]: value 
+    }
     setWorkoutExercises(updated)
   }
 
@@ -206,13 +276,17 @@ export default function EditWorkoutPage() {
           status,
           exercises: workoutExercises.map(ex => ({
             exerciseId: ex.exerciseId,
-            sets: ex.sets,
-            reps: ex.reps,
-            weight: ex.weight,
-            duration: ex.duration,
-            restTime: ex.restTime,
             notes: ex.notes,
             order: ex.order,
+            sets: ex.sets.map(set => ({
+              setNumber: set.setNumber,
+              reps: set.reps,
+              weight: set.weight,
+              duration: set.duration,
+              restTime: set.restTime,
+              notes: set.notes,
+              isDropSet: set.isDropSet,
+            })),
           })),
         }),
       })
@@ -241,10 +315,13 @@ export default function EditWorkoutPage() {
 
   const calculateTotalVolume = () => {
     return workoutExercises.reduce((total, ex) => {
-      if (ex.weight && ex.reps) {
-        return total + (ex.weight * ex.reps * ex.sets)
-      }
-      return total
+      const exerciseVolume = ex.sets.reduce((setTotal, set) => {
+        if (set.weight && set.reps) {
+          return setTotal + (set.weight * set.reps)
+        }
+        return setTotal
+      }, 0)
+      return total + exerciseVolume
     }, 0)
   }
 
@@ -358,7 +435,7 @@ export default function EditWorkoutPage() {
                     <div className="flex justify-between">
                       <span className="text-hf-text-secondary">Total Sets:</span>
                       <span className="text-hf-text">
-                        {workoutExercises.reduce((sum, ex) => sum + ex.sets, 0)}
+                        {workoutExercises.reduce((sum, ex) => sum + ex.sets.length, 0)}
                       </span>
                     </div>
                     <div className="flex justify-between">
@@ -410,81 +487,120 @@ export default function EditWorkoutPage() {
 
                 {/* Exercise List */}
                 <div className="space-y-4">
-                  {workoutExercises.map((exercise, index) => (
-                    <div key={`${exercise.exerciseId}-${index}`} className="p-4 bg-hf-dark rounded-lg border border-hf-card">
+                  {workoutExercises.map((exercise, exerciseIndex) => (
+                    <div key={`${exercise.exerciseId}-${exerciseIndex}`} className="p-4 bg-hf-dark rounded-lg border border-hf-card">
                       <div className="flex items-center justify-between mb-4">
                         <h4 className="font-medium text-hf-text">{exercise.exerciseName}</h4>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => removeExercise(index)}
+                          onClick={() => removeExercise(exerciseIndex)}
                           className="text-hf-error hover:text-hf-error"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
 
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div className="space-y-2">
-                          <Label className="text-xs text-hf-text-secondary">Sets</Label>
-                          <Input
-                            type="number"
-                            value={exercise.sets}
-                            onChange={(e) => updateExercise(index, 'sets', Number(e.target.value))}
-                            min={1}
-                            max={20}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-hf-text-secondary">Reps</Label>
-                          <Input
-                            type="number"
-                            value={exercise.reps}
-                            onChange={(e) => updateExercise(index, 'reps', Number(e.target.value))}
-                            min={1}
-                            max={100}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-hf-text-secondary">Weight (lbs)</Label>
-                          <Input
-                            type="number"
-                            value={exercise.weight || ''}
-                            onChange={(e) => updateExercise(index, 'weight', e.target.value ? Number(e.target.value) : null)}
-                            min={0}
-                            step={0.5}
-                            placeholder="Optional"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="text-xs text-hf-text-secondary">Rest (sec)</Label>
-                          <Input
-                            type="number"
-                            value={exercise.restTime || ''}
-                            onChange={(e) => updateExercise(index, 'restTime', e.target.value ? Number(e.target.value) : null)}
-                            min={0}
-                            placeholder="60"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="mt-4">
+                      {/* Exercise Notes */}
+                      <div className="mb-4">
                         <Label className="text-xs text-hf-text-secondary">Exercise Notes</Label>
                         <Input
                           value={exercise.notes}
-                          onChange={(e) => updateExercise(index, 'notes', e.target.value)}
+                          onChange={(e) => updateExercise(exerciseIndex, 'notes', e.target.value)}
                           placeholder="Form notes, observations..."
                           className="mt-1"
                         />
                       </div>
 
-                      {exercise.weight && exercise.reps && (
-                        <div className="mt-3 text-sm text-hf-text-secondary">
-                          Volume: <span className="text-hf-orange font-medium">
-                            {(exercise.weight * exercise.reps * exercise.sets).toLocaleString()} lbs
-                          </span>
+                      {/* Sets */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm text-hf-text">Sets ({exercise.sets.length})</Label>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addSet(exerciseIndex)}
+                            className="text-hf-orange border-hf-orange hover:bg-hf-orange hover:text-white"
+                          >
+                            <Plus className="h-4 w-4 mr-1" />
+                            Add Set
+                          </Button>
                         </div>
-                      )}
+
+                        {exercise.sets.map((set, setIndex) => (
+                          <div key={setIndex} className="grid grid-cols-4 md:grid-cols-6 gap-2 items-center p-3 bg-hf-background rounded border border-hf-card">
+                            <div className="text-xs text-hf-text-secondary font-medium">
+                              Set {set.setNumber}
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-hf-text-secondary">Reps</Label>
+                              <Input
+                                type="number"
+                                value={set.reps}
+                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'reps', Number(e.target.value))}
+                                min={1}
+                                max={100}
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-hf-text-secondary">Weight</Label>
+                              <Input
+                                type="number"
+                                value={set.weight || ''}
+                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'weight', e.target.value ? Number(e.target.value) : null)}
+                                min={0}
+                                step={0.5}
+                                placeholder="0"
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-hf-text-secondary">Rest (s)</Label>
+                              <Input
+                                type="number"
+                                value={set.restTime || ''}
+                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'restTime', e.target.value ? Number(e.target.value) : null)}
+                                min={0}
+                                placeholder="60"
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs text-hf-text-secondary">Notes</Label>
+                              <Input
+                                value={set.notes}
+                                onChange={(e) => updateSet(exerciseIndex, setIndex, 'notes', e.target.value)}
+                                placeholder="Set notes"
+                                className="h-8"
+                              />
+                            </div>
+                            <div className="flex items-end">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeSet(exerciseIndex, setIndex)}
+                                className="text-hf-error hover:text-hf-error h-8 w-8 p-0"
+                                disabled={exercise.sets.length <= 1}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Exercise Volume */}
+                      <div className="mt-3 text-sm text-hf-text-secondary">
+                        Volume: <span className="text-hf-orange font-medium">
+                          {exercise.sets.reduce((total, set) => {
+                            if (set.weight && set.reps) {
+                              return total + (set.weight * set.reps)
+                            }
+                            return total
+                          }, 0).toLocaleString()} lbs
+                        </span>
+                      </div>
                     </div>
                   ))}
                 </div>

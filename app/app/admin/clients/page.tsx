@@ -64,66 +64,29 @@ export default function AdminClientsPage() {
 
   const fetchClients = async () => {
     try {
-      // In a real app, you'd fetch from /api/admin/clients
-      // For now, we'll simulate the data
-      const mockClients: Client[] = [
-        {
-          id: '1',
-          name: 'Alice Johnson',
-          email: 'alice@fitness.com',
-          phone: '+1-555-0124',
-          role: 'CLIENT',
-          isActive: true,
-          createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
-          fitnessGoals: 'Lose weight and build strength',
-          _count: {
-            bookings: 12,
-            workoutSessions: 8,
-            personalRecords: 5,
-            creditPurchases: 2,
-          },
-          remainingCredits: 8,
-        },
-        {
-          id: '2',
-          name: 'Bob Smith',
-          email: 'bob@fitness.com',
-          phone: '+1-555-0125',
-          role: 'CLIENT',
-          isActive: true,
-          createdAt: new Date(Date.now() - 86400000 * 45).toISOString(),
-          fitnessGoals: 'Build muscle mass and improve endurance',
-          _count: {
-            bookings: 8,
-            workoutSessions: 6,
-            personalRecords: 3,
-            creditPurchases: 1,
-          },
-          remainingCredits: 3,
-        },
-        {
-          id: '3',
-          name: 'Carol Williams',
-          email: 'carol@fitness.com',
-          phone: '+1-555-0126',
-          role: 'CLIENT',
-          isActive: true,
-          createdAt: new Date(Date.now() - 86400000 * 60).toISOString(),
-          fitnessGoals: 'Improve flexibility and maintain fitness',
-          _count: {
-            bookings: 15,
-            workoutSessions: 12,
-            personalRecords: 8,
-            creditPurchases: 3,
-          },
-          remainingCredits: 12,
-        },
-      ]
-
-      setClients(mockClients)
-      setTotalPages(1)
+      const response = await fetch('/api/admin/clients')
+      const data = await response.json()
+      
+      if (data.success) {
+        setClients(data.data || [])
+        setTotalPages(data.pagination?.totalPages || 1)
+      } else {
+        console.error('Failed to fetch clients:', data.error)
+        setClients([])
+        toast({
+          title: 'Error',
+          description: 'Failed to fetch clients. Please try again.',
+          variant: 'destructive',
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch clients:', error)
+      setClients([])
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch clients. Please try again.',
+        variant: 'destructive',
+      })
     } finally {
       setLoading(false)
     }

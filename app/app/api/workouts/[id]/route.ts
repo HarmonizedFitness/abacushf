@@ -17,7 +17,38 @@ export async function GET(
     const workout = await prisma.workoutSession.findUnique({
       where: { id: workoutId },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        groups: {
+          include: {
+            exercises: {
+              include: {
+                exercise: {
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    category: true,
+                    muscleGroups: true,
+                    equipment: true,
+                  },
+                },
+                sets: {
+                  orderBy: { setNumber: 'asc' },
+                },
+              },
+              orderBy: { orderInGroup: 'asc' },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
         exercises: {
+          where: { groupId: null }, // Ungrouped exercises
           include: {
             exercise: {
               select: {
@@ -29,15 +60,11 @@ export async function GET(
                 equipment: true,
               },
             },
+            sets: {
+              orderBy: { setNumber: 'asc' },
+            },
           },
           orderBy: { order: 'asc' },
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
         },
       },
     })
@@ -80,7 +107,7 @@ export async function PATCH(
     const user = await requireAuth()
     const workoutId = params.id
     const body = await request.json()
-    const { date, duration, notes, status, exercises } = body
+    const { date, duration, notes, status, exercises = [], groups = [] } = body
 
     // Get existing workout
     const existingWorkout = await prisma.workoutSession.findUnique({
@@ -113,8 +140,107 @@ export async function PATCH(
     const updatedWorkout = await prisma.workoutSession.update({
       where: { id: workoutId },
       data: updateData,
+    })
+
+    // Update exercises and groups if provided
+    if (exercises.length > 0 || groups.length > 0) {
+      // Delete existing exercises and groups (cascade will handle sets)
+      await prisma.workoutExerciseGroup.deleteMany({
+        where: { workoutSessionId: workoutId },
+      })
+      await prisma.workoutExercise.deleteMany({
+        where: { workoutSessionId: workoutId },
+      })
+
+      // Create new groups and exercises
+      await prisma.workoutSession.update({
+        where: { id: workoutId },
+        data: {
+          groups: {
+            create: groups.map((group: any, groupIndex: number) => ({
+              type: group.type || 'REGULAR',
+              name: group.name,
+              notes: group.notes,
+              order: group.order || groupIndex + 1,
+              rounds: group.rounds,
+              restBetweenRounds: group.restBetweenRounds,
+              exercises: {
+                create: group.exercises.map((exercise: any, exerciseIndex: number) => ({
+                  exerciseId: exercise.exerciseId,
+                  order: exercise.order || exerciseIndex + 1,
+                  orderInGroup: exercise.orderInGroup || exerciseIndex + 1,
+                  notes: exercise.notes,
+                  sets: {
+                    create: exercise.sets.map((set: any) => ({
+                      setNumber: set.setNumber,
+                      reps: set.reps,
+                      weight: set.weight,
+                      duration: set.duration,
+                      restTime: set.restTime,
+                      notes: set.notes,
+                      isDropSet: set.isDropSet || false,
+                    })),
+                  },
+                })),
+              },
+            })),
+          },
+          exercises: {
+            create: exercises.map((exercise: any, exerciseIndex: number) => ({
+              exerciseId: exercise.exerciseId,
+              order: exercise.order || exerciseIndex + 1,
+              notes: exercise.notes,
+              sets: {
+                create: exercise.sets.map((set: any) => ({
+                  setNumber: set.setNumber,
+                  reps: set.reps,
+                  weight: set.weight,
+                  duration: set.duration,
+                  restTime: set.restTime,
+                  notes: set.notes,
+                  isDropSet: set.isDropSet || false,
+                })),
+              },
+            })),
+          },
+        },
+      })
+    }
+
+    // Fetch updated workout with new structure
+    const finalWorkout = await prisma.workoutSession.findUnique({
+      where: { id: workoutId },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        groups: {
+          include: {
+            exercises: {
+              include: {
+                exercise: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    muscleGroups: true,
+                  },
+                },
+                sets: {
+                  orderBy: { setNumber: 'asc' },
+                },
+              },
+              orderBy: { orderInGroup: 'asc' },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
         exercises: {
+          where: { groupId: null },
           include: {
             exercise: {
               select: {
@@ -124,65 +250,19 @@ export async function PATCH(
                 muscleGroups: true,
               },
             },
+            sets: {
+              orderBy: { setNumber: 'asc' },
+            },
           },
           orderBy: { order: 'asc' },
         },
       },
     })
 
-    // Update exercises if provided
-    if (exercises && Array.isArray(exercises)) {
-      // Delete existing exercises
-      await prisma.workoutExercise.deleteMany({
-        where: { workoutSessionId: workoutId },
-      })
-
-      // Create new exercises
-      await prisma.workoutExercise.createMany({
-        data: exercises.map((exercise: any, index: number) => ({
-          workoutSessionId: workoutId,
-          exerciseId: exercise.exerciseId,
-          sets: exercise.sets,
-          reps: exercise.reps,
-          weight: exercise.weight || null,
-          duration: exercise.duration || null,
-          restTime: exercise.restTime || null,
-          notes: exercise.notes || null,
-          order: exercise.order || index + 1,
-        })),
-      })
-
-      // Fetch updated workout with new exercises
-      const finalWorkout = await prisma.workoutSession.findUnique({
-        where: { id: workoutId },
-        include: {
-          exercises: {
-            include: {
-              exercise: {
-                select: {
-                  id: true,
-                  name: true,
-                  category: true,
-                  muscleGroups: true,
-                },
-              },
-            },
-            orderBy: { order: 'asc' },
-          },
-        },
-      })
-
-      return NextResponse.json({
-        success: true,
-        message: 'Workout updated successfully',
-        data: finalWorkout,
-      })
-    }
-
     return NextResponse.json({
       success: true,
       message: 'Workout updated successfully',
-      data: updatedWorkout,
+      data: finalWorkout,
     })
   } catch (error) {
     console.error('Update workout error:', error)

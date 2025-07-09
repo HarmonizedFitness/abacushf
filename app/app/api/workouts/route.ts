@@ -41,7 +41,36 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: (page - 1) * limit,
         include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          groups: {
+            include: {
+              exercises: {
+                include: {
+                  exercise: {
+                    select: {
+                      id: true,
+                      name: true,
+                      category: true,
+                      muscleGroups: true,
+                    },
+                  },
+                  sets: {
+                    orderBy: { setNumber: 'asc' },
+                  },
+                },
+                orderBy: { orderInGroup: 'asc' },
+              },
+            },
+            orderBy: { order: 'asc' },
+          },
           exercises: {
+            where: { groupId: null }, // Ungrouped exercises
             include: {
               exercise: {
                 select: {
@@ -50,6 +79,9 @@ export async function GET(request: NextRequest) {
                   category: true,
                   muscleGroups: true,
                 },
+              },
+              sets: {
+                orderBy: { setNumber: 'asc' },
               },
             },
             orderBy: { order: 'asc' },
@@ -80,36 +112,54 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/workouts - Create new workout session
+// POST /api/workouts - Create new workout session with new schema
 export async function POST(request: NextRequest) {
   try {
     const user = await requireAuth()
     const body = await request.json()
-    const { date, duration, notes, exercises, status = 'COMPLETED' } = body
+    const { 
+      date, 
+      duration, 
+      notes, 
+      exercises = [], 
+      groups = [],
+      status = 'COMPLETED' 
+    } = body
 
     // Validate input
-    if (!date || !duration || !exercises || !Array.isArray(exercises) || exercises.length === 0) {
+    if (!date || !duration) {
       return NextResponse.json(
-        { success: false, error: 'Date, duration, and exercises are required' },
+        { success: false, error: 'Date and duration are required' },
+        { status: 400 }
+      )
+    }
+
+    if (exercises.length === 0 && groups.length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'At least one exercise or group is required' },
         { status: 400 }
       )
     }
 
     // Validate exercises
-    const exerciseIds = exercises.map((e: any) => e.exerciseId)
+    const allExerciseIds = [
+      ...exercises.map((e: any) => e.exerciseId),
+      ...groups.flatMap((g: any) => g.exercises.map((e: any) => e.exerciseId))
+    ]
+
     const validExercises = await prisma.exercise.findMany({
-      where: { id: { in: exerciseIds }, isActive: true },
+      where: { id: { in: allExerciseIds }, isActive: true },
       select: { id: true },
     })
 
-    if (validExercises.length !== exerciseIds.length) {
+    if (validExercises.length !== allExerciseIds.length) {
       return NextResponse.json(
         { success: false, error: 'Some exercises are invalid' },
         { status: 400 }
       )
     }
 
-    // Create workout session with exercises
+    // Create workout session with new schema
     const workout = await prisma.workoutSession.create({
       data: {
         userId: user.id,
@@ -117,20 +167,83 @@ export async function POST(request: NextRequest) {
         duration,
         notes: notes || null,
         status,
+        groups: {
+          create: groups.map((group: any, groupIndex: number) => ({
+            type: group.type || 'REGULAR',
+            name: group.name,
+            notes: group.notes,
+            order: group.order || groupIndex + 1,
+            rounds: group.rounds,
+            restBetweenRounds: group.restBetweenRounds,
+            exercises: {
+              create: group.exercises.map((exercise: any, exerciseIndex: number) => ({
+                exerciseId: exercise.exerciseId,
+                order: exercise.order || exerciseIndex + 1,
+                orderInGroup: exercise.orderInGroup || exerciseIndex + 1,
+                notes: exercise.notes,
+                sets: {
+                  create: exercise.sets.map((set: any) => ({
+                    setNumber: set.setNumber,
+                    reps: set.reps,
+                    weight: set.weight,
+                    duration: set.duration,
+                    restTime: set.restTime,
+                    notes: set.notes,
+                    isDropSet: set.isDropSet || false,
+                  })),
+                },
+              })),
+            },
+          })),
+        },
         exercises: {
-          create: exercises.map((exercise: any, index: number) => ({
+          create: exercises.map((exercise: any, exerciseIndex: number) => ({
             exerciseId: exercise.exerciseId,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            weight: exercise.weight || null,
-            duration: exercise.duration || null,
-            restTime: exercise.restTime || null,
-            notes: exercise.notes || null,
-            order: exercise.order || index + 1,
+            order: exercise.order || exerciseIndex + 1,
+            notes: exercise.notes,
+            sets: {
+              create: exercise.sets.map((set: any) => ({
+                setNumber: set.setNumber,
+                reps: set.reps,
+                weight: set.weight,
+                duration: set.duration,
+                restTime: set.restTime,
+                notes: set.notes,
+                isDropSet: set.isDropSet || false,
+              })),
+            },
           })),
         },
       },
       include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        groups: {
+          include: {
+            exercises: {
+              include: {
+                exercise: {
+                  select: {
+                    id: true,
+                    name: true,
+                    category: true,
+                    muscleGroups: true,
+                  },
+                },
+                sets: {
+                  orderBy: { setNumber: 'asc' },
+                },
+              },
+              orderBy: { orderInGroup: 'asc' },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
         exercises: {
           include: {
             exercise: {
@@ -141,6 +254,9 @@ export async function POST(request: NextRequest) {
                 muscleGroups: true,
               },
             },
+            sets: {
+              orderBy: { setNumber: 'asc' },
+            },
           },
           orderBy: { order: 'asc' },
         },
@@ -149,23 +265,41 @@ export async function POST(request: NextRequest) {
 
     // Check for new personal records
     const newPRs = []
-    for (const exercise of exercises) {
-      if (exercise.weight && exercise.reps) {
-        const volume = exercise.weight * exercise.reps * exercise.sets
+    const allWorkoutExercises = [
+      ...workout.exercises,
+      ...workout.groups.flatMap(g => g.exercises)
+    ]
+
+    for (const workoutExercise of allWorkoutExercises) {
+      // Find the best set for this exercise
+      const bestSet = workoutExercise.sets.reduce((best, current) => {
+        if (!best) return current
+        
+        const currentVolume = (Number(current.weight) || 0) * (current.reps || 0)
+        const bestVolume = (Number(best.weight) || 0) * (best.reps || 0)
+        
+        if (currentVolume > bestVolume) return current
+        if (currentVolume === bestVolume && (Number(current.weight) || 0) > (Number(best.weight) || 0)) return current
+        
+        return best
+      }, null as any)
+
+      if (bestSet?.weight && bestSet?.reps) {
+        const volume = Number(bestSet.weight) * Number(bestSet.reps)
 
         // Get current PR
         const existingPR = await prisma.personalRecord.findUnique({
           where: {
             userId_exerciseId: {
               userId: user.id,
-              exerciseId: exercise.exerciseId,
+              exerciseId: workoutExercise.exerciseId,
             },
           },
         })
 
         const isNewPR = !existingPR || 
-                       (exercise.weight > Number(existingPR.weight || 0)) ||
-                       (exercise.weight === Number(existingPR.weight) && exercise.reps > (existingPR.reps || 0)) ||
+                       (bestSet.weight > Number(existingPR.weight || 0)) ||
+                       (bestSet.weight === Number(existingPR.weight) && bestSet.reps > (existingPR.reps || 0)) ||
                        (volume > Number(existingPR.volume || 0))
 
         if (isNewPR) {
@@ -173,21 +307,21 @@ export async function POST(request: NextRequest) {
             where: {
               userId_exerciseId: {
                 userId: user.id,
-                exerciseId: exercise.exerciseId,
+                exerciseId: workoutExercise.exerciseId,
               },
             },
             update: {
-              weight: exercise.weight,
-              reps: exercise.reps,
+              weight: bestSet.weight,
+              reps: bestSet.reps,
               volume,
               notes: `New PR from workout on ${new Date(date).toLocaleDateString()}`,
               achievedAt: new Date(),
             },
             create: {
               userId: user.id,
-              exerciseId: exercise.exerciseId,
-              weight: exercise.weight,
-              reps: exercise.reps,
+              exerciseId: workoutExercise.exerciseId,
+              weight: bestSet.weight,
+              reps: bestSet.reps,
               volume,
               notes: `First PR recorded on ${new Date(date).toLocaleDateString()}`,
               achievedAt: new Date(),

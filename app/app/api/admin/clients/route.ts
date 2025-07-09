@@ -42,9 +42,18 @@ export async function GET(request: NextRequest) {
           name: true,
           email: true,
           phone: true,
+          role: true,
           fitnessGoals: true,
           isActive: true,
           createdAt: true,
+          _count: {
+            select: {
+              bookings: true,
+              workoutSessions: true,
+              personalRecords: true,
+              creditPurchases: true,
+            },
+          },
         },
         orderBy: { name: 'asc' },
         take: limit,
@@ -53,9 +62,45 @@ export async function GET(request: NextRequest) {
       prisma.user.count({ where }),
     ])
 
+    // Calculate remaining credits for each client
+    const clientsWithCredits = await Promise.all(
+      clients.map(async (client) => {
+        // Get total credits purchased
+        const totalCredits = await prisma.creditPurchase.aggregate({
+          where: {
+            userId: client.id,
+            status: 'COMPLETED',
+          },
+          _sum: {
+            credits: true,
+          },
+        })
+
+        // Get total credits used (bookings)
+        const creditsUsed = await prisma.booking.aggregate({
+          where: {
+            userId: client.id,
+            status: {
+              in: ['CONFIRMED', 'COMPLETED'],
+            },
+          },
+          _sum: {
+            creditsUsed: true,
+          },
+        })
+
+        const remainingCredits = (totalCredits._sum.credits || 0) - (creditsUsed._sum.creditsUsed || 0)
+
+        return {
+          ...client,
+          remainingCredits: Math.max(0, remainingCredits),
+        }
+      })
+    )
+
     return NextResponse.json({
       success: true,
-      data: clients,
+      data: clientsWithCredits,
       pagination: {
         total,
         page,
