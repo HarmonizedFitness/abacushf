@@ -3,14 +3,13 @@ import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-config'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Dumbbell, Target, Users, Plus } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { LoadingSpinner } from '@/components/common/loading-spinner'
 import { PageHeader } from '@/components/navigation/page-header'
 import { prisma } from '@/lib/db'
 import Link from 'next/link'
+import { ExerciseLibraryClient } from './exercise-library-client'
 
 async function ExercisesContent() {
   const session = await getServerSession(authOptions)
@@ -41,24 +40,11 @@ async function ExercisesContent() {
     exercises = []
   }
 
-  const getCategoryBadge = (category: string) => {
-    const colors: Record<string, string> = {
-      CHEST: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-      BACK: 'bg-green-500/20 text-green-400 border-green-500/30',
-      LEGS: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-      SHOULDERS: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-      ARMS: 'bg-red-500/20 text-red-400 border-red-500/30',
-      CORE: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-    }
-    return <Badge className={colors[category] || 'bg-gray-500/20 text-gray-400 border-gray-500/30'}>{category}</Badge>
-  }
-
-
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <PageHeader 
-        title="Exercise Management"
+        title="Exercise Library"
         description="Manage exercise library and workout components"
         showBack={true}
         backHref="/admin/dashboard"
@@ -71,78 +57,7 @@ async function ExercisesContent() {
         </Link>
       </PageHeader>
 
-      <div className="grid gap-6">
-        {exercises?.length === 0 ? (
-          <Card className="bg-hf-card border-hf-card">
-            <CardContent className="text-center py-12">
-              <Dumbbell className="h-12 w-12 mx-auto text-hf-text-secondary mb-4" />
-              <p className="text-hf-text-secondary mb-2">No exercises found</p>
-              <p className="text-sm text-hf-text-secondary mb-4">
-                Start building your exercise library by adding your first exercise
-              </p>
-              <Link href="/admin/exercises/new">
-                <Button className="btn-gradient">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Exercise
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        ) : (
-          exercises?.map((exercise) => (
-            <Card key={exercise.id} className="bg-hf-card border-hf-card">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-orange rounded-lg flex items-center justify-center">
-                      <Dumbbell className="h-6 w-6 text-white" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-hf-text text-lg">{exercise.name}</CardTitle>
-                      <p className="text-hf-text-secondary text-sm">{exercise.equipment || 'No equipment specified'}</p>
-                    </div>
-                  </div>
-                  <div className="flex space-x-2">
-                    {getCategoryBadge(exercise.category)}
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                  <div className="flex items-center space-x-2">
-                    <Target className="h-4 w-4 text-hf-orange" />
-                    <span className="text-hf-text-secondary">
-                      {exercise.muscleGroups?.length > 0 ? exercise.muscleGroups.join(', ') : 'No muscle groups specified'}
-                    </span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Users className="h-4 w-4 text-hf-orange" />
-                    <span className="text-hf-text-secondary">
-                      Used by {exercise._count?.favoritedBy || 0} clients • {exercise._count?.workoutExercises || 0} workouts
-                    </span>
-                  </div>
-                </div>
-                
-                <p className="text-hf-text-secondary text-sm mb-4">
-                  {exercise.description || exercise.instructions || 'No description available'}
-                </p>
-                
-                <div className="flex space-x-2">
-                  <Button size="sm" variant="outline" className="border-hf-orange text-hf-orange hover:bg-hf-orange hover:text-white">
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-blue-500 text-blue-400 hover:bg-blue-500 hover:text-white">
-                    View Details
-                  </Button>
-                  <Button size="sm" variant="outline" className="border-red-500 text-red-400 hover:bg-red-500 hover:text-white">
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+      <ExerciseLibraryClient exercises={exercises} />
     </div>
   )
 }
