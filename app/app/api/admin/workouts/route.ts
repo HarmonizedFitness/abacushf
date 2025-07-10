@@ -127,6 +127,8 @@ export async function GET(request: NextRequest) {
 // POST /api/admin/workouts - Create new workout session with advanced features
 export async function POST(request: NextRequest) {
   try {
+    console.log('Starting advanced workout submission...')
+    
     const user = await requireAuth()
     
     // Check if user is admin
@@ -187,13 +189,15 @@ export async function POST(request: NextRequest) {
     })
 
     if (validExercises.length !== allExerciseIds.length) {
+      const missing = allExerciseIds.filter(id => !validExercises.some(ve => ve.id === id))
+      console.error('Exercise validation failed. Missing exercises:', missing)
       return NextResponse.json(
         { success: false, error: 'Some exercises are invalid' },
         { status: 400 }
       )
     }
 
-    // Create workout session with groups and exercises
+    // Create workout session first
     const workout = await prisma.workoutSession.create({
       data: {
         userId: clientId,
@@ -201,54 +205,85 @@ export async function POST(request: NextRequest) {
         duration,
         notes: notes || null,
         status,
-        groups: {
-          create: groups.map((group: any, groupIndex: number) => ({
-            type: group.type || 'REGULAR',
-            name: group.name,
-            notes: group.notes,
-            order: group.order || groupIndex + 1,
-            rounds: group.rounds,
-            restBetweenRounds: group.restBetweenRounds,
-            exercises: {
-              create: group.exercises.map((exercise: any, exerciseIndex: number) => ({
-                exerciseId: exercise.exerciseId,
-                order: exercise.order || exerciseIndex + 1,
-                orderInGroup: exercise.orderInGroup || exerciseIndex + 1,
-                notes: exercise.notes,
-                sets: {
-                  create: exercise.sets.map((set: any) => ({
-                    setNumber: set.setNumber,
-                    reps: set.reps,
-                    weight: set.weight,
-                    duration: set.duration,
-                    restTime: set.restTime,
-                    notes: set.notes,
-                    isDropSet: set.isDropSet || false,
-                  })),
-                },
-              })),
-            },
-          })),
+      },
+    })
+
+    // Create groups if any
+    for (const [groupIndex, group] of groups.entries()) {
+      const createdGroup = await prisma.workoutExerciseGroup.create({
+        data: {
+          workoutSessionId: workout.id,
+          type: group.type || 'REGULAR',
+          name: group.name,
+          notes: group.notes,
+          order: group.order || groupIndex + 1,
+          rounds: group.rounds,
+          restBetweenRounds: group.restBetweenRounds,
         },
-        exercises: {
-          create: exercises.map((exercise: any, exerciseIndex: number) => ({
+      })
+
+      // Create exercises for this group
+      for (const [exerciseIndex, exercise] of group.exercises.entries()) {
+        const createdExercise = await prisma.workoutExercise.create({
+          data: {
+            workoutSessionId: workout.id,
+            groupId: createdGroup.id,
             exerciseId: exercise.exerciseId,
             order: exercise.order || exerciseIndex + 1,
+            orderInGroup: exercise.orderInGroup || exerciseIndex + 1,
             notes: exercise.notes,
-            sets: {
-              create: exercise.sets.map((set: any) => ({
-                setNumber: set.setNumber,
-                reps: set.reps,
-                weight: set.weight,
-                duration: set.duration,
-                restTime: set.restTime,
-                notes: set.notes,
-                isDropSet: set.isDropSet || false,
-              })),
+          },
+        })
+
+        // Create sets for this exercise
+        for (const set of exercise.sets) {
+          await prisma.workoutSet.create({
+            data: {
+              workoutExerciseId: createdExercise.id,
+              setNumber: set.setNumber,
+              reps: set.reps,
+              weight: set.weight,
+              duration: set.duration,
+              restTime: set.restTime,
+              notes: set.notes,
+              isDropSet: set.isDropSet || false,
             },
-          })),
+          })
+        }
+      }
+    }
+
+    // Create ungrouped exercises
+    for (const [exerciseIndex, exercise] of exercises.entries()) {
+      const createdExercise = await prisma.workoutExercise.create({
+        data: {
+          workoutSessionId: workout.id,
+          exerciseId: exercise.exerciseId,
+          order: exercise.order || exerciseIndex + 1,
+          notes: exercise.notes,
         },
-      },
+      })
+
+      // Create sets for this exercise
+      for (const set of exercise.sets) {
+        await prisma.workoutSet.create({
+          data: {
+            workoutExerciseId: createdExercise.id,
+            setNumber: set.setNumber,
+            reps: set.reps,
+            weight: set.weight,
+            duration: set.duration,
+            restTime: set.restTime,
+            notes: set.notes,
+            isDropSet: set.isDropSet || false,
+          },
+        })
+      }
+    }
+
+    // Fetch the complete workout with all relationships
+    const completeWorkout = await prisma.workoutSession.findUnique({
+      where: { id: workout.id },
       include: {
         user: {
           select: {
@@ -297,11 +332,17 @@ export async function POST(request: NextRequest) {
       },
     })
 
+    if (!completeWorkout) {
+      throw new Error('Failed to fetch complete workout after creation')
+    }
+
+    console.log(`Workout created successfully: ${completeWorkout.id} with ${completeWorkout.groups.length} groups and ${completeWorkout.exercises.length} exercises`)
+
     // Check for new personal records
     const newPRs = []
     const allWorkoutExercises = [
-      ...workout.exercises,
-      ...workout.groups.flatMap(g => g.exercises)
+      ...completeWorkout.exercises,
+      ...completeWorkout.groups.flatMap(g => g.exercises)
     ]
 
     for (const workoutExercise of allWorkoutExercises) {
@@ -396,14 +437,27 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Workout logged successfully',
       data: {
-        workout,
+        workout: completeWorkout,
         newPersonalRecords: newPRs.length,
       },
     })
-  } catch (error) {
-    console.error('Create admin workout error:', error)
+  } catch (error: any) {
+    console.error('Failed to create workout:', error?.message)
+    
+    // Log Prisma-specific errors for debugging
+    if (error?.code?.startsWith('P')) {
+      console.error('Prisma error:', {
+        code: error.code,
+        message: error.message,
+        meta: error.meta
+      })
+    }
+
     return NextResponse.json(
-      { success: false, error: 'Failed to create workout' },
+      { 
+        success: false, 
+        error: 'Failed to create workout'
+      },
       { status: 500 }
     )
   }
