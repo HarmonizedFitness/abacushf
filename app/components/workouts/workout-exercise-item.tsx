@@ -142,7 +142,7 @@ export function WorkoutExerciseItem({
                 <Checkbox
                   checked={selected}
                   onCheckedChange={onSelect}
-                  className="border-hf-card"
+                  className="border-2 border-hf-orange data-[state=checked]:bg-hf-orange data-[state=checked]:border-hf-orange h-5 w-5 hover:border-hf-orange/80 focus:ring-2 focus:ring-hf-orange/50"
                 />
               </>
             )}

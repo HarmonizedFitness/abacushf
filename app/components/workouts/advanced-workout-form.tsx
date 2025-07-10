@@ -615,12 +615,36 @@ export function AdvancedWorkoutForm({
                 />
               ))}
 
+              {/* Grouping Guide */}
+              {ungroupedExercises.length > 1 && selectedExercises.length === 0 && (
+                <div className="p-4 bg-hf-dark rounded-lg border border-hf-card">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Settings className="h-4 w-4 text-hf-orange" />
+                    <h3 className="text-sm font-medium text-hf-text">Create Exercise Groups</h3>
+                  </div>
+                  <p className="text-xs text-hf-text-secondary mb-3">
+                    Select multiple exercises using the checkboxes to create supersets or circuits.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      <span className="text-hf-text-secondary">2 exercises = Superset</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                      <span className="text-hf-text-secondary">3+ exercises = Circuit</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Ungrouped Exercises */}
               {ungroupedExercises.map((exercise) => (
                 <div key={exercise.id} className="relative">
-                  {/* Superset/Circuit Visual Indicators */}
-                  {selectedExercises.includes(exercise.id) && selectedExercises.length > 1 && (
-                    <div className={`absolute -left-2 top-0 bottom-0 w-1 rounded-full ${
+                  {/* Selection Indicator Strip */}
+                  {selectedExercises.includes(exercise.id) && (
+                    <div className={`absolute -left-1 top-0 bottom-0 w-1 rounded-full z-10 ${
+                      selectedExercises.length === 1 ? 'bg-hf-orange' :
                       selectedExercises.length === 2 ? 'bg-green-500' : 'bg-blue-500'
                     }`} />
                   )}
@@ -656,6 +680,7 @@ export function AdvancedWorkoutForm({
                     onAddSet={addSet}
                     onRemoveSet={removeSet}
                     onUpdateSet={updateSet}
+                    isGrouped={false}
                     isBodyWeight={bodyWeightExercises.has(exercise.id)}
                     currentBodyWeight={currentBodyWeight}
                   />
