@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
-import { formatDate, formatTime, formatRelativeTime } from '@/lib/utils'
+import { formatDate, formatTime, formatRelativeTime, formatPRDisplay } from '@/lib/utils'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -48,7 +48,7 @@ export default function DashboardPage() {
         fetch('/api/credits'),
         fetch('/api/bookings?limit=3&status=CONFIRMED'),
         fetch('/api/workouts?limit=3'),
-        fetch('/api/personal-records?limit=5'),
+        fetch('/api/personal-records?limit=5&calculate=true'),
       ])
 
       const [creditsData, bookingsData, workoutsData, recordsData] = await Promise.all([
@@ -366,13 +366,10 @@ export default function DashboardPage() {
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-hf-orange">
-                          {record.weight && `${record.weight} lbs`}
-                          {record.weight && record.reps && ' × '}
-                          {record.reps && `${record.reps} reps`}
-                          {record.duration && `${record.duration}s`}
+                          {formatPRDisplay({ weight: record.weight, reps: record.reps, duration: record.duration }, record.isBodyweight)}
                         </p>
                         <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
-                          PR
+                          {record.isBodyweight ? 'BW PR' : 'PR'}
                         </Badge>
                       </div>
                     </div>
@@ -383,41 +380,7 @@ export default function DashboardPage() {
           </Card>
         </div>
 
-        {/* Weekly Progress */}
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader>
-            <CardTitle className="text-hf-text flex items-center">
-              <TrendingUp className="h-5 w-5 mr-2 text-hf-orange" />
-              Weekly Progress
-            </CardTitle>
-            <CardDescription className="text-hf-text-secondary">
-              Track your consistency and improvement
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-hf-text-secondary">Workout Goal</span>
-                <span className="text-hf-text">3/4 sessions</span>
-              </div>
-              <Progress value={75} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-hf-text-secondary">Strength Goal</span>
-                <span className="text-hf-text">2/3 PR attempts</span>
-              </div>
-              <Progress value={67} className="h-2" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-hf-text-secondary">Consistency</span>
-                <span className="text-hf-text">85% this month</span>
-              </div>
-              <Progress value={85} className="h-2" />
-            </div>
-          </CardContent>
-        </Card>
+
       </div>
     </ProtectedLayout>
   )

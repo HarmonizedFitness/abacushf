@@ -25,7 +25,7 @@ import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDate, formatRelativeTime } from '@/lib/utils'
+import { formatDate, formatRelativeTime, formatPRDisplay, formatVolumeDisplay } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
@@ -39,11 +39,29 @@ interface PersonalRecord {
   volume?: number
   notes?: string
   achievedAt: string
+  isBodyweight?: boolean
+  calculated?: {
+    maxWeight?: {
+      weight: number
+      reps: number
+      achievedAt: string
+      workoutSessionId: string
+    }
+    maxVolume?: {
+      weight: number
+      reps: number
+      volume: number
+      achievedAt: string
+      workoutSessionId: string
+    }
+    userBodyWeight?: number
+  }
   exercise: {
     id: string
     name: string
     category: string
     muscleGroups: string[]
+    equipment?: string
     imageUrl?: string
   }
 }
@@ -83,6 +101,7 @@ export default function PersonalRecordsPage() {
     try {
       const params = new URLSearchParams()
       if (categoryFilter !== 'all') params.append('category', categoryFilter)
+      params.append('calculate', 'true') // Enable automatic PR calculation
       
       const response = await fetch(`/api/personal-records?${params.toString()}`)
       const data = await response.json()
@@ -196,33 +215,34 @@ export default function PersonalRecordsPage() {
     },
     {
       key: 'weight',
-      title: 'Weight',
+      title: 'Weight PR',
       sortable: true,
       render: (weight, record) => (
         <div className="text-center">
-          {weight ? (
-            <div>
-              <span className="text-lg font-bold text-hf-orange">{weight} lbs</span>
-              {record.reps && (
-                <p className="text-xs text-hf-text-secondary">× {record.reps} reps</p>
-              )}
-            </div>
-          ) : (
-            <span className="text-hf-text-secondary">-</span>
+          <span className="text-lg font-bold text-hf-orange">
+            {formatPRDisplay({ weight, reps: record.reps }, record.isBodyweight)}
+          </span>
+          {record.calculated?.maxWeight && (
+            <p className="text-xs text-hf-text-secondary">
+              Max: {formatPRDisplay(record.calculated.maxWeight, record.isBodyweight)}
+            </p>
           )}
         </div>
       ),
     },
     {
       key: 'volume',
-      title: 'Volume',
+      title: 'Volume PR',
       sortable: true,
-      render: (volume) => (
+      render: (volume, record) => (
         <div className="text-center">
-          {volume ? (
-            <span className="font-medium text-hf-text">{Number(volume).toLocaleString()} lbs</span>
-          ) : (
-            <span className="text-hf-text-secondary">-</span>
+          <span className="font-medium text-hf-text">
+            {formatVolumeDisplay(Number(volume) || 0, record.isBodyweight)}
+          </span>
+          {record.calculated?.maxVolume && (
+            <p className="text-xs text-hf-text-secondary">
+              Max: {formatVolumeDisplay(record.calculated.maxVolume.volume, record.isBodyweight)}
+            </p>
           )}
         </div>
       ),

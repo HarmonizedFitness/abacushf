@@ -468,3 +468,113 @@ export function generateWorkoutIdentifier(clientName: string, date: string): str
   
   return `${cleanName}_${day}${month}${year}`
 }
+
+// Personal Records calculation utilities
+export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: number) {
+  const prsByExercise: Record<string, {
+    exerciseId: string
+    exerciseName: string
+    category: string
+    maxWeight: { weight: number, reps: number, achievedAt: string, workoutSessionId: string } | null
+    maxVolume: { weight: number, reps: number, volume: number, achievedAt: string, workoutSessionId: string } | null
+    isBodyweight: boolean
+  }> = {}
+
+  workoutSets.forEach((set: any) => {
+    const exerciseId = set.workoutExercise?.exerciseId
+    const exerciseName = set.workoutExercise?.exercise?.name
+    const exerciseCategory = set.workoutExercise?.exercise?.category
+    const isBodyweight = set.workoutExercise?.exercise?.category?.toLowerCase()?.includes('bodyweight') || 
+                         set.workoutExercise?.exercise?.equipment?.toLowerCase()?.includes('bodyweight') ||
+                         !set.weight || set.weight === 0
+
+    if (!exerciseId || !set.reps) return
+
+    // Initialize exercise record if not exists
+    if (!prsByExercise[exerciseId]) {
+      prsByExercise[exerciseId] = {
+        exerciseId,
+        exerciseName: exerciseName || 'Unknown Exercise',
+        category: exerciseCategory || 'Unknown',
+        maxWeight: null,
+        maxVolume: null,
+        isBodyweight
+      }
+    }
+
+    // For weight calculations, use user body weight for bodyweight exercises
+    const effectiveWeight = isBodyweight ? (userBodyWeight || 0) : (Number(set.weight) || 0)
+    const reps = Number(set.reps) || 0
+    const volume = effectiveWeight * reps
+    const achievedAt = set.workoutExercise?.workoutSession?.date || set.createdAt || new Date().toISOString()
+    const workoutSessionId = set.workoutExercise?.workoutSessionId
+
+    // Update max weight PR (heaviest single weight lifted)
+    if (effectiveWeight > 0 && (!prsByExercise[exerciseId].maxWeight || effectiveWeight > prsByExercise[exerciseId].maxWeight!.weight)) {
+      prsByExercise[exerciseId].maxWeight = {
+        weight: effectiveWeight,
+        reps,
+        achievedAt,
+        workoutSessionId
+      }
+    }
+
+    // Update max volume PR (highest weight × reps for single set)
+    if (volume > 0 && (!prsByExercise[exerciseId].maxVolume || volume > prsByExercise[exerciseId].maxVolume!.volume)) {
+      prsByExercise[exerciseId].maxVolume = {
+        weight: effectiveWeight,
+        reps,
+        volume,
+        achievedAt,
+        workoutSessionId
+      }
+    }
+  })
+
+  return Object.values(prsByExercise)
+}
+
+export function formatPRDisplay(pr: any, isBodyweight: boolean = false): string {
+  if (!pr) return '-'
+  
+  if (isBodyweight) {
+    return pr.reps ? `BW × ${pr.reps}` : 'BW'
+  }
+  
+  if (pr.weight && pr.reps) {
+    return `${pr.weight} lbs × ${pr.reps}`
+  } else if (pr.weight) {
+    return `${pr.weight} lbs`
+  } else if (pr.reps) {
+    return `${pr.reps} reps`
+  }
+  
+  return '-'
+}
+
+export function formatVolumeDisplay(volume: number, isBodyweight: boolean = false): string {
+  if (!volume || volume === 0) return '-'
+  
+  if (isBodyweight) {
+    return `${volume.toLocaleString()} BW×reps`
+  }
+  
+  return `${volume.toLocaleString()} lbs`
+}
+
+export function isBodyweightExercise(exercise: any): boolean {
+  if (!exercise) return false
+  
+  const category = exercise.category?.toLowerCase() || ''
+  const equipment = exercise.equipment?.toLowerCase() || ''
+  const name = exercise.name?.toLowerCase() || ''
+  
+  return category.includes('bodyweight') || 
+         equipment.includes('bodyweight') || 
+         name.includes('bodyweight') ||
+         name.includes('push-up') ||
+         name.includes('pull-up') ||
+         name.includes('chin-up') ||
+         name.includes('dip') ||
+         name.includes('plank')
+}

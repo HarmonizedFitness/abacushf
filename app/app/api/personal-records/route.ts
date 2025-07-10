@@ -2,10 +2,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
+import { calculatePersonalRecords, isBodyweightExercise } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
-// GET /api/personal-records - Get user's personal records
+// GET /api/personal-records - Get user's personal records with automatic calculation
 export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
@@ -14,6 +15,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const limit = parseInt(searchParams.get('limit') || '20')
     const page = parseInt(searchParams.get('page') || '1')
+    const calculate = searchParams.get('calculate') === 'true'
 
     const where: any = {
       userId: user.id,
@@ -29,6 +31,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get stored personal records
     const [personalRecords, total] = await Promise.all([
       prisma.personalRecord.findMany({
         where,
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
               name: true,
               category: true,
               muscleGroups: true,
+              equipment: true,
               imageUrl: true,
             },
           },
@@ -50,9 +54,76 @@ export async function GET(request: NextRequest) {
       prisma.personalRecord.count({ where }),
     ])
 
+    // If calculate=true, also calculate PRs from workout data and compare
+    let calculatedPRs: any[] = []
+    let userBodyWeight: number | undefined
+
+    if (calculate) {
+      // Get user's latest body weight
+      const latestBodyWeight = await prisma.progressEntry.findFirst({
+        where: {
+          userId: user.id,
+          type: 'BODY_WEIGHT'
+        },
+        orderBy: { recordedAt: 'desc' },
+        select: { value: true }
+      })
+
+      userBodyWeight = latestBodyWeight ? Number(latestBodyWeight.value) : undefined
+
+      // Get all workout sets for calculation
+      const workoutSets = await prisma.workoutSet.findMany({
+        where: {
+          workoutExercise: {
+            workoutSession: {
+              userId: user.id
+            }
+          }
+        },
+        include: {
+          workoutExercise: {
+            include: {
+              exercise: {
+                select: {
+                  id: true,
+                  name: true,
+                  category: true,
+                  equipment: true
+                }
+              },
+              workoutSession: {
+                select: {
+                  id: true,
+                  date: true
+                }
+              }
+            }
+          }
+        }
+      })
+
+      calculatedPRs = calculatePersonalRecords(workoutSets, userBodyWeight)
+    }
+
+    // Enhance personal records with calculated data and bodyweight info
+    const enhancedRecords = personalRecords.map(record => {
+      const isBodyweight = isBodyweightExercise(record.exercise)
+      const calculatedPR = calculatedPRs.find(pr => pr.exerciseId === record.exerciseId)
+      
+      return {
+        ...record,
+        isBodyweight,
+        calculated: calculatedPR ? {
+          maxWeight: calculatedPR.maxWeight,
+          maxVolume: calculatedPR.maxVolume,
+          userBodyWeight
+        } : null
+      }
+    })
+
     return NextResponse.json({
       success: true,
-      data: personalRecords,
+      data: enhancedRecords,
       pagination: {
         total,
         page,
@@ -61,6 +132,10 @@ export async function GET(request: NextRequest) {
         hasNext: page * limit < total,
         hasPrev: page > 1,
       },
+      calculated: calculate ? {
+        totalCalculatedPRs: calculatedPRs.length,
+        userBodyWeight
+      } : null
     })
   } catch (error) {
     console.error('Get personal records error:', error)
