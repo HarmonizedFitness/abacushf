@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { useEffect, useState } from 'react'
-import { formatDate, formatTime, formatRelativeTime, formatPRDisplay } from '@/lib/utils'
+import { formatDate, formatTime, formatRelativeTime, formatPRDisplay, formatPRDisplayWithHighlight } from '@/lib/utils'
 
 interface DashboardData {
   remainingCredits: number
@@ -33,6 +33,7 @@ interface DashboardData {
   personalRecords: any[]
   totalWorkouts: number
   totalPRs: number
+  thisWeekExercises: number
   profile: any
 }
 
@@ -51,22 +52,40 @@ export default function AdminClientDashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
+      // Get start of current week (Monday)
+      const now = new Date()
+      const startOfWeek = new Date(now)
+      const day = startOfWeek.getDay()
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
+      startOfWeek.setDate(diff)
+      startOfWeek.setHours(0, 0, 0, 0)
+
       // Fetch using the same endpoints as clients but with admin permissions
-      const [clientRes, bookingsRes, workoutsRes, recordsRes] = await Promise.all([
+      const [clientRes, bookingsRes, workoutsRes, recordsRes, weekWorkoutsRes] = await Promise.all([
         fetch(`/api/admin/clients/${params.id}`),
         fetch(`/api/admin/clients/${params.id}/bookings?limit=3&status=CONFIRMED`),
         fetch(`/api/admin/clients/${params.id}/workouts?limit=3`),
         fetch(`/api/admin/clients/${params.id}/records?limit=5&calculate=true`),
+        fetch(`/api/admin/clients/${params.id}/workouts?from=${startOfWeek.toISOString()}&detailed=true`),
       ])
 
-      const [clientData, bookingsData, workoutsData, recordsData] = await Promise.all([
+      const [clientData, bookingsData, workoutsData, recordsData, weekWorkoutsData] = await Promise.all([
         clientRes.json(),
         bookingsRes.json(),
         workoutsRes.json(),
         recordsRes.json(),
+        weekWorkoutsRes.json(),
       ])
 
       if (clientData.success) {
+        // Calculate this week's exercises
+        let thisWeekExercises = 0
+        if (weekWorkoutsData.success && weekWorkoutsData.data) {
+          thisWeekExercises = weekWorkoutsData.data.reduce((total: number, workout: any) => {
+            return total + (workout.exercises?.length || 0)
+          }, 0)
+        }
+
         setDashboardData({
           profile: clientData.data,
           remainingCredits: clientData.data?.remainingCredits || 0,
@@ -75,6 +94,7 @@ export default function AdminClientDashboardPage() {
           personalRecords: recordsData.data || [],
           totalWorkouts: workoutsData.pagination?.total || 0,
           totalPRs: recordsData.pagination?.total || 0,
+          thisWeekExercises,
         })
       } else {
         toast({
@@ -172,44 +192,24 @@ export default function AdminClientDashboardPage() {
             value={dashboardData.remainingCredits || 0}
             description="Available for booking sessions"
             icon={CreditCard}
-            trend={{
-              value: 12,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="Total Workouts"
             value={dashboardData.totalWorkouts || 0}
             description="Completed training sessions"
             icon={Target}
-            trend={{
-              value: 8,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="Personal Records"
             value={dashboardData.totalPRs || 0}
             description="Achievements unlocked"
             icon={Trophy}
-            trend={{
-              value: 25,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="This Week"
-            value="3"
-            description="Workouts completed"
+            value={dashboardData.thisWeekExercises || 0}
+            description="Exercises completed"
             icon={TrendingUp}
-            trend={{
-              value: 50,
-              label: 'vs last week',
-              isPositive: true,
-            }}
           />
         </div>
 
@@ -430,11 +430,20 @@ export default function AdminClientDashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-hf-orange">
-                          {formatPRDisplay({ weight: record.weight, reps: record.reps, duration: record.duration }, record.isBodyweight)}
-                        </p>
+                        {(() => {
+                          const prDisplay = formatPRDisplayWithHighlight(
+                            { weight: record.weight, reps: record.reps, duration: record.duration }, 
+                            record.isBodyweight, 
+                            'weight'
+                          )
+                          return (
+                            <p className={`font-bold ${prDisplay.isWeightPR ? 'text-hf-orange font-extrabold' : 'text-hf-orange'}`}>
+                              {prDisplay.text}
+                            </p>
+                          )
+                        })()}
                         <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
-                          {record.isBodyweight ? 'BW PR' : 'PR'}
+                          {record.isBodyweight ? 'BW PR' : 'Weight PR'}
                         </Badge>
                       </div>
                     </div>

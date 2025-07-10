@@ -214,7 +214,12 @@ export default function AdminClientsPage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium text-hf-text">{client.name}</p>
+            <Link 
+              href={`/admin/clients/${client.id}`}
+              className="font-medium text-hf-text hover:text-hf-orange transition-colors cursor-pointer"
+            >
+              {client.name}
+            </Link>
             <div className="flex items-center space-x-2 text-xs text-hf-text-secondary">
               <Mail className="h-3 w-3" />
               <span>{client.email}</span>

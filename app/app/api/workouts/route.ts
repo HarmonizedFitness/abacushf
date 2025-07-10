@@ -12,7 +12,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const startDate = searchParams.get('startDate')
     const endDate = searchParams.get('endDate')
+    const from = searchParams.get('from') // Support for dashboard calls
     const status = searchParams.get('status')
+    const detailed = searchParams.get('detailed') === 'true'
     const limit = parseInt(searchParams.get('limit') || '10')
     const page = parseInt(searchParams.get('page') || '1')
 
@@ -24,10 +26,13 @@ export async function GET(request: NextRequest) {
       where.status = status
     }
 
-    if (startDate || endDate) {
+    if (startDate || endDate || from) {
       where.date = {}
       if (startDate) {
         where.date.gte = new Date(startDate)
+      }
+      if (from) {
+        where.date.gte = new Date(from)
       }
       if (endDate) {
         where.date.lte = new Date(endDate)

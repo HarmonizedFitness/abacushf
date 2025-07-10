@@ -196,44 +196,24 @@ export default function AdminAnalyticsPage() {
                 value={formatCurrency(analyticsData?.overview.totalRevenue || 0)}
                 description="All time earnings"
                 icon={DollarSign}
-                trend={{
-                  value: analyticsData?.overview.revenueGrowth || 0,
-                  label: 'vs last period',
-                  isPositive: (analyticsData?.overview.revenueGrowth || 0) >= 0,
-                }}
               />
               <StatCard
                 title="Period Revenue"
                 value={formatCurrency(analyticsData?.overview.monthlyRevenue || 0)}
                 description="Selected timeframe"
                 icon={TrendingUp}
-                trend={{
-                  value: analyticsData?.overview.revenueGrowth || 0,
-                  label: 'vs last period',
-                  isPositive: (analyticsData?.overview.revenueGrowth || 0) >= 0,
-                }}
               />
               <StatCard
                 title="Avg Revenue/Client"
                 value={formatCurrency(analyticsData?.overview.averageRevenuePerClient || 0)}
                 description="Per client value"
                 icon={Users}
-                trend={{
-                  value: 8.3,
-                  label: 'vs last period',
-                  isPositive: true,
-                }}
               />
               <StatCard
                 title="Active Clients"
                 value={`${analyticsData?.overview.activeClients || 0}/${analyticsData?.overview.totalClients || 0}`}
                 description="Currently training"
                 icon={Target}
-                trend={{
-                  value: analyticsData?.overview.clientGrowth || 0,
-                  label: 'vs last period',
-                  isPositive: (analyticsData?.overview.clientGrowth || 0) >= 0,
-                }}
               />
             </div>
           </CardContent>
@@ -257,33 +237,18 @@ export default function AdminAnalyticsPage() {
                 value={analyticsData?.overview.totalSessions || 0}
                 description="In selected period"
                 icon={Activity}
-                trend={{
-                  value: 12.5,
-                  label: 'vs last period',
-                  isPositive: true,
-                }}
               />
               <StatCard
                 title="Avg Sessions/Client"
                 value={Number(analyticsData?.overview.averageSessionsPerClient || 0).toFixed(1)}
                 description="Per client average"
                 icon={BarChart3}
-                trend={{
-                  value: 5.2,
-                  label: 'vs last period',
-                  isPositive: true,
-                }}
               />
               <StatCard
                 title="Retention Rate"
                 value={`${Number(analyticsData?.overview.retentionRate || 0).toFixed(1)}%`}
                 description="Client retention"
                 icon={Target}
-                trend={{
-                  value: 2.1,
-                  label: 'vs last period',
-                  isPositive: true,
-                }}
               />
             </div>
           </CardContent>

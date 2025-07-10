@@ -24,6 +24,8 @@ export async function GET(
     const { searchParams } = new URL(request.url)
     const limit = parseInt(searchParams.get('limit') || '10')
     const page = parseInt(searchParams.get('page') || '1')
+    const from = searchParams.get('from')
+    const detailed = searchParams.get('detailed') === 'true'
 
     // Verify client exists
     const client = await prisma.user.findUnique({
@@ -40,11 +42,15 @@ export async function GET(
       )
     }
 
+    // Build where clause
+    const whereClause: any = { userId: params.id }
+    if (from) {
+      whereClause.date = { gte: new Date(from) }
+    }
+
     // Fetch workout sessions
     const workoutSessions = await prisma.workoutSession.findMany({
-      where: {
-        userId: params.id,
-      },
+      where: whereClause,
       select: {
         id: true,
         date: true,
@@ -58,8 +64,24 @@ export async function GET(
             exercise: {
               select: {
                 name: true,
+                ...(detailed && {
+                  category: true,
+                  muscleGroups: true,
+                  equipment: true,
+                }),
               },
             },
+            ...(detailed && {
+              sets: {
+                select: {
+                  id: true,
+                  setNumber: true,
+                  reps: true,
+                  weight: true,
+                  duration: true,
+                },
+              },
+            }),
           },
         },
       },
@@ -70,9 +92,22 @@ export async function GET(
       skip: (page - 1) * limit,
     })
 
+    // Get total count for pagination
+    const totalCount = await prisma.workoutSession.count({
+      where: whereClause,
+    })
+
     return NextResponse.json({
       success: true,
       data: workoutSessions,
+      pagination: {
+        total: totalCount,
+        page,
+        limit,
+        totalPages: Math.ceil(totalCount / limit),
+        hasNext: page * limit < totalCount,
+        hasPrev: page > 1,
+      },
     })
   } catch (error) {
     console.error('Get client workouts error:', error)

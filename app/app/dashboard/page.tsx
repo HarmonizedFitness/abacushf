@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
-import { formatDate, formatTime, formatRelativeTime, formatPRDisplay } from '@/lib/utils'
+import { formatDate, formatTime, formatRelativeTime, formatPRDisplay, formatPRDisplayWithHighlight } from '@/lib/utils'
 import Link from 'next/link'
 
 interface DashboardData {
@@ -31,6 +31,7 @@ interface DashboardData {
   personalRecords: any[]
   totalWorkouts: number
   totalPRs: number
+  thisWeekExercises: number
 }
 
 export default function DashboardPage() {
@@ -44,19 +45,37 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const [creditsRes, bookingsRes, workoutsRes, recordsRes] = await Promise.all([
+      // Get start of current week (Monday)
+      const now = new Date()
+      const startOfWeek = new Date(now)
+      const day = startOfWeek.getDay()
+      const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1) // Adjust when day is Sunday
+      startOfWeek.setDate(diff)
+      startOfWeek.setHours(0, 0, 0, 0)
+
+      const [creditsRes, bookingsRes, workoutsRes, recordsRes, weekWorkoutsRes] = await Promise.all([
         fetch('/api/credits'),
         fetch('/api/bookings?limit=3&status=CONFIRMED'),
         fetch('/api/workouts?limit=3'),
         fetch('/api/personal-records?limit=5&calculate=true'),
+        fetch(`/api/workouts?from=${startOfWeek.toISOString()}&detailed=true`),
       ])
 
-      const [creditsData, bookingsData, workoutsData, recordsData] = await Promise.all([
+      const [creditsData, bookingsData, workoutsData, recordsData, weekWorkoutsData] = await Promise.all([
         creditsRes.json(),
         bookingsRes.json(),
         workoutsRes.json(),
         recordsRes.json(),
+        weekWorkoutsRes.json(),
       ])
+
+      // Calculate this week's exercises
+      let thisWeekExercises = 0
+      if (weekWorkoutsData.success && weekWorkoutsData.data) {
+        thisWeekExercises = weekWorkoutsData.data.reduce((total: number, workout: any) => {
+          return total + (workout.exercises?.length || 0)
+        }, 0)
+      }
 
       setDashboardData({
         remainingCredits: creditsData.data?.remainingCredits || 0,
@@ -65,6 +84,7 @@ export default function DashboardPage() {
         personalRecords: recordsData.data || [],
         totalWorkouts: workoutsData.pagination?.total || 0,
         totalPRs: recordsData.pagination?.total || 0,
+        thisWeekExercises,
       })
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
@@ -101,44 +121,24 @@ export default function DashboardPage() {
             value={dashboardData?.remainingCredits || 0}
             description="Available for booking sessions"
             icon={CreditCard}
-            trend={{
-              value: 12,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="Total Workouts"
             value={dashboardData?.totalWorkouts || 0}
             description="Completed training sessions"
             icon={Target}
-            trend={{
-              value: 8,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="Personal Records"
             value={dashboardData?.totalPRs || 0}
             description="Achievements unlocked"
             icon={Trophy}
-            trend={{
-              value: 25,
-              label: 'vs last month',
-              isPositive: true,
-            }}
           />
           <StatCard
             title="This Week"
-            value="3"
-            description="Workouts completed"
+            value={dashboardData?.thisWeekExercises || 0}
+            description="Exercises completed"
             icon={TrendingUp}
-            trend={{
-              value: 50,
-              label: 'vs last week',
-              isPositive: true,
-            }}
           />
         </div>
 
@@ -365,11 +365,20 @@ export default function DashboardPage() {
                         </p>
                       </div>
                       <div className="text-right">
-                        <p className="font-bold text-hf-orange">
-                          {formatPRDisplay({ weight: record.weight, reps: record.reps, duration: record.duration }, record.isBodyweight)}
-                        </p>
+                        {(() => {
+                          const prDisplay = formatPRDisplayWithHighlight(
+                            { weight: record.weight, reps: record.reps, duration: record.duration }, 
+                            record.isBodyweight, 
+                            'weight'
+                          )
+                          return (
+                            <p className={`font-bold ${prDisplay.isWeightPR ? 'text-hf-orange font-extrabold' : 'text-hf-orange'}`}>
+                              {prDisplay.text}
+                            </p>
+                          )
+                        })()}
                         <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
-                          {record.isBodyweight ? 'BW PR' : 'PR'}
+                          {record.isBodyweight ? 'BW PR' : 'Weight PR'}
                         </Badge>
                       </div>
                     </div>

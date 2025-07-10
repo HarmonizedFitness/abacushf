@@ -30,6 +30,11 @@ interface WorkoutSession {
   duration: number
   notes?: string
   status: string
+  user: {
+    id: string
+    name: string
+    email: string
+  }
   groups: Array<{
     id: string
     name?: string
@@ -247,7 +252,7 @@ export default function WorkoutDetailPage() {
               </Button>
             </div>
             <h1 className="text-3xl font-bold text-hf-text mt-2">
-              {session?.user?.name ? generateWorkoutIdentifier(session.user.name, workout.date) : 'Workout Details'}
+              {workout.user?.name ? generateWorkoutIdentifier(workout.user.name, workout.date) : 'Workout Details'}
             </h1>
             <p className="text-hf-text-secondary">
               {formatDate(workout.date)} • {getTotalExerciseCount(workout)} exercises
