@@ -65,6 +65,8 @@ interface WorkoutExerciseItemProps {
   isGrouped?: boolean
   isBodyWeight?: boolean
   currentBodyWeight?: number
+  isCompleted?: boolean
+  onToggleCompletion?: (exerciseId: string) => void
 }
 
 export function WorkoutExerciseItem({
@@ -79,11 +81,12 @@ export function WorkoutExerciseItem({
   isGrouped = false,
   isBodyWeight = false,
   currentBodyWeight = 0,
+  isCompleted = false,
+  onToggleCompletion,
 }: WorkoutExerciseItemProps) {
   const [isEditingNotes, setIsEditingNotes] = useState(false)
   const [editNotes, setEditNotes] = useState(exercise.notes || '')
   const [isExpanded, setIsExpanded] = useState(false)
-  const [isCompleted, setIsCompleted] = useState(false)
 
   const handleSaveNotes = () => {
     onUpdateExercise(exercise.id, { notes: editNotes.trim() || undefined })
@@ -91,10 +94,12 @@ export function WorkoutExerciseItem({
   }
 
   const handleCompletedToggle = () => {
-    setIsCompleted(!isCompleted)
-    if (!isCompleted) {
-      // When marking as completed, collapse the exercise
-      setIsExpanded(false)
+    if (onToggleCompletion) {
+      onToggleCompletion(exercise.id)
+      if (!isCompleted) {
+        // When marking as completed, collapse the exercise
+        setIsExpanded(false)
+      }
     }
   }
 

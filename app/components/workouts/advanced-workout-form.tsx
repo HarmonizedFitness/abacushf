@@ -121,6 +121,7 @@ export function AdvancedWorkoutForm({
   const [exerciseDialogOpen, setExerciseDialogOpen] = useState(false)
   const [currentBodyWeight, setCurrentBodyWeight] = useState<number>(0)
   const [bodyWeightExercises, setBodyWeightExercises] = useState<Set<string>>(new Set())
+  const [completedExercises, setCompletedExercises] = useState<Set<string>>(new Set())
 
   // Generate unique IDs
   const generateId = () => Date.now().toString() + Math.random().toString(36).substr(2, 9)
@@ -158,6 +159,17 @@ export function AdvancedWorkoutForm({
       newBodyWeightExercises.add(exerciseId)
     }
     setBodyWeightExercises(newBodyWeightExercises)
+  }
+
+  // Toggle exercise completion
+  const toggleExerciseCompletion = (exerciseId: string) => {
+    const newCompletedExercises = new Set(completedExercises)
+    if (newCompletedExercises.has(exerciseId)) {
+      newCompletedExercises.delete(exerciseId)
+    } else {
+      newCompletedExercises.add(exerciseId)
+    }
+    setCompletedExercises(newCompletedExercises)
   }
 
   // Add new exercise (ungrouped)
@@ -612,6 +624,8 @@ export function AdvancedWorkoutForm({
                   bodyWeightExercises={bodyWeightExercises}
                   currentBodyWeight={currentBodyWeight}
                   onToggleBodyWeight={toggleBodyWeight}
+                  completedExercises={completedExercises}
+                  onToggleCompletion={toggleExerciseCompletion}
                 />
               ))}
 
@@ -683,6 +697,8 @@ export function AdvancedWorkoutForm({
                     isGrouped={false}
                     isBodyWeight={bodyWeightExercises.has(exercise.id)}
                     currentBodyWeight={currentBodyWeight}
+                    isCompleted={completedExercises.has(exercise.id)}
+                    onToggleCompletion={toggleExerciseCompletion}
                   />
                 </div>
               ))}

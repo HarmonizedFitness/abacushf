@@ -102,9 +102,9 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { clientId, date, duration, status, notes, exercises } = body
+    const { clientId, date, duration, status, notes, groups = [], exercises = [] } = body
 
-    if (!clientId || !date || !exercises || exercises.length === 0) {
+    if (!clientId || !date || (groups.length === 0 && exercises.length === 0)) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Create the workout session
+    // Create the workout session with groups and exercises
     const workoutSession = await prisma.workoutSession.create({
       data: {
         userId: clientId,
@@ -131,16 +131,53 @@ export async function POST(request: NextRequest) {
         duration: duration || 60,
         status: status || 'COMPLETED',
         notes,
+        // Create exercise groups
+        groups: {
+          create: groups.map((group: any) => ({
+            type: group.type || 'REGULAR',
+            name: group.name,
+            notes: group.notes,
+            order: group.order,
+            rounds: group.rounds,
+            restBetweenRounds: group.restBetweenRounds,
+            exercises: {
+              create: group.exercises.map((exercise: any) => ({
+                exerciseId: exercise.exerciseId,
+                order: exercise.order,
+                orderInGroup: exercise.orderInGroup,
+                notes: exercise.notes,
+                sets: {
+                  create: exercise.sets.map((set: any) => ({
+                    setNumber: set.setNumber,
+                    reps: set.reps,
+                    weight: set.weight ? parseFloat(set.weight) : null,
+                    duration: set.duration,
+                    restTime: set.restTime,
+                    notes: set.notes,
+                    isDropSet: set.isDropSet || false,
+                  }))
+                }
+              }))
+            }
+          }))
+        },
+        // Create ungrouped exercises
         exercises: {
-          create: exercises.map((exercise: any, index: number) => ({
+          create: exercises.map((exercise: any) => ({
             exerciseId: exercise.exerciseId,
-            sets: exercise.sets,
-            reps: exercise.reps,
-            weight: exercise.weight,
-            duration: exercise.duration,
-            restTime: exercise.restTime,
+            order: exercise.order,
             notes: exercise.notes,
-            order: index + 1,
+            sets: {
+              create: exercise.sets.map((set: any) => ({
+                setNumber: set.setNumber,
+                reps: set.reps,
+                weight: set.weight ? parseFloat(set.weight) : null,
+                duration: set.duration,
+                restTime: set.restTime,
+                notes: set.notes,
+                isDropSet: set.isDropSet || false,
+              }))
+            }
           }))
         }
       },
@@ -152,9 +189,20 @@ export async function POST(request: NextRequest) {
             email: true,
           }
         },
+        groups: {
+          include: {
+            exercises: {
+              include: {
+                exercise: true,
+                sets: true
+              }
+            }
+          }
+        },
         exercises: {
           include: {
-            exercise: true
+            exercise: true,
+            sets: true
           }
         }
       }
@@ -162,44 +210,58 @@ export async function POST(request: NextRequest) {
 
     // Update personal records for completed workouts
     if (status === 'COMPLETED') {
-      for (const exercise of exercises) {
-        if (exercise.weight && exercise.reps) {
-          const volume = exercise.weight * exercise.sets * exercise.reps
+      const allExercises = [
+        ...exercises,
+        ...groups.flatMap((group: any) => group.exercises)
+      ]
 
-          // Check if this is a new PR
-          const existingPR = await prisma.personalRecord.findFirst({
-            where: {
-              userId: clientId,
-              exerciseId: exercise.exerciseId,
-            },
-            orderBy: {
-              volume: 'desc'
-            }
+      for (const exercise of allExercises) {
+        if (exercise.sets && exercise.sets.length > 0) {
+          // Find the best set (highest weight * reps)
+          const bestSet = exercise.sets.reduce((best: any, current: any) => {
+            const currentVolume = (current.weight || 0) * (current.reps || 0)
+            const bestVolume = (best.weight || 0) * (best.reps || 0)
+            return currentVolume > bestVolume ? current : best
           })
 
-          if (!existingPR || volume > Number(existingPR.volume || 0)) {
-            await prisma.personalRecord.upsert({
+          if (bestSet.weight && bestSet.reps) {
+            const volume = bestSet.weight * bestSet.reps
+
+            // Check if this is a new PR
+            const existingPR = await prisma.personalRecord.findFirst({
               where: {
-                userId_exerciseId: {
-                  userId: clientId,
-                  exerciseId: exercise.exerciseId,
-                }
-              },
-              update: {
-                weight: exercise.weight,
-                reps: exercise.reps,
-                volume,
-                achievedAt: new Date(date),
-              },
-              create: {
                 userId: clientId,
                 exerciseId: exercise.exerciseId,
-                weight: exercise.weight,
-                reps: exercise.reps,
-                volume,
-                achievedAt: new Date(date),
+              },
+              orderBy: {
+                volume: 'desc'
               }
             })
+
+            if (!existingPR || volume > Number(existingPR.volume || 0)) {
+              await prisma.personalRecord.upsert({
+                where: {
+                  userId_exerciseId: {
+                    userId: clientId,
+                    exerciseId: exercise.exerciseId,
+                  }
+                },
+                update: {
+                  weight: bestSet.weight,
+                  reps: bestSet.reps,
+                  volume,
+                  achievedAt: new Date(date),
+                },
+                create: {
+                  userId: clientId,
+                  exerciseId: exercise.exerciseId,
+                  weight: bestSet.weight,
+                  reps: bestSet.reps,
+                  volume,
+                  achievedAt: new Date(date),
+                }
+              })
+            }
           }
         }
       }
@@ -207,7 +269,9 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: workoutSession,
+      data: {
+        workout: workoutSession,
+      },
     })
   } catch (error) {
     console.error('Failed to create workout:', error)

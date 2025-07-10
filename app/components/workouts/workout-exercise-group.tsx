@@ -70,6 +70,8 @@ interface WorkoutExerciseGroupProps {
   bodyWeightExercises?: Set<string>
   currentBodyWeight?: number
   onToggleBodyWeight?: (exerciseId: string) => void
+  completedExercises?: Set<string>
+  onToggleCompletion?: (exerciseId: string) => void
 }
 
 export function WorkoutExerciseGroup({
@@ -82,6 +84,8 @@ export function WorkoutExerciseGroup({
   bodyWeightExercises = new Set(),
   currentBodyWeight = 0,
   onToggleBodyWeight,
+  completedExercises = new Set(),
+  onToggleCompletion,
 }: WorkoutExerciseGroupProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -334,6 +338,8 @@ export function WorkoutExerciseGroup({
                     isGrouped={true}
                     isBodyWeight={bodyWeightExercises.has(exercise.id)}
                     currentBodyWeight={currentBodyWeight}
+                    isCompleted={completedExercises.has(exercise.id)}
+                    onToggleCompletion={onToggleCompletion}
                   />
                 </div>
               ))}
