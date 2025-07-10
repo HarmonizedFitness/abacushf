@@ -103,7 +103,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
   })
 
   const isAdmin = session?.user?.role === 'ADMIN'
-  const canEdit = !readonly && isAdmin
+  const canEdit = !readonly && (isAdmin || !userId || userId === session?.user?.id)
 
   useEffect(() => {
     fetchProgressData()

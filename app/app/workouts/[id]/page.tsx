@@ -168,8 +168,12 @@ export default function WorkoutDetailPage() {
     // Calculate volume from ungrouped exercises
     workout.exercises?.forEach(ex => {
       ex.sets?.forEach(set => {
-        if (set.weight && set.reps) {
-          total += Number(set.weight) * set.reps
+        if (set.reps) {
+          // For bodyweight exercises, exclude from volume calculation
+          const weight = Number(set.weight) || 0
+          if (weight > 0) {
+            total += weight * set.reps
+          }
         }
       })
     })
@@ -178,8 +182,12 @@ export default function WorkoutDetailPage() {
     workout.groups?.forEach(group => {
       group.exercises?.forEach(ex => {
         ex.sets?.forEach(set => {
-          if (set.weight && set.reps) {
-            total += Number(set.weight) * set.reps
+          if (set.reps) {
+            // For bodyweight exercises, exclude from volume calculation
+            const weight = Number(set.weight) || 0
+            if (weight > 0) {
+              total += weight * set.reps
+            }
           }
         })
       })
@@ -365,8 +373,11 @@ export default function WorkoutDetailPage() {
             <div className="space-y-6">
               {getAllExercises(workout).map((exercise, index) => {
                 const exerciseVolume = exercise.sets.reduce((total: number, set: any) => {
-                  if (set.weight && set.reps) {
-                    return total + (Number(set.weight) * set.reps)
+                  if (set.reps) {
+                    const weight = Number(set.weight) || 0
+                    if (weight > 0) {
+                      return total + (weight * set.reps)
+                    }
                   }
                   return total
                 }, 0)
