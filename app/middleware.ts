@@ -87,6 +87,11 @@ export default withAuth(
       return NextResponse.redirect(new URL('/admin/dashboard', req.url))
     }
 
+    // Redirect admin profile requests to unified profile page
+    if (req.nextUrl.pathname.startsWith('/admin/profile') && token?.role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/profile', req.url))
+    }
+
     return NextResponse.next()
   },
   {

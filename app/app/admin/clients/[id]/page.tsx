@@ -1,98 +1,81 @@
 
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
   ArrowLeft, 
   Edit, 
   CreditCard, 
-  Mail, 
-  Phone, 
-  Calendar, 
-  Trophy, 
-  Activity,
+  Activity, 
   Target,
-  User,
-  Clock
+  Calendar,
+  Shield,
+  TrendingUp,
+  Plus,
+  Trophy,
 } from 'lucide-react'
+import { ProtectedLayout } from '@/components/layout/protected-layout'
+import { StatCard } from '@/components/common/stat-card'
+import { AccountSettings } from '@/components/common/account-settings'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
-import { formatDate, formatRelativeTime, getInitials } from '@/lib/utils'
+import { useEffect, useState } from 'react'
+import { formatDate, formatTime, formatRelativeTime, formatPRDisplay } from '@/lib/utils'
 
-interface Client {
-  id: string
-  name: string
-  email: string
-  phone?: string
-  role: string
-  fitnessGoals?: string
-  isActive: boolean
-  createdAt: string
+interface DashboardData {
   remainingCredits: number
-  _count: {
-    bookings: number
-    workoutSessions: number
-    personalRecords: number
-    creditPurchases: number
-  }
+  upcomingBookings: any[]
+  recentWorkouts: any[]
+  personalRecords: any[]
+  totalWorkouts: number
+  totalPRs: number
+  profile: any
 }
 
-interface WorkoutSession {
-  id: string
-  date: string
-  duration: number
-  notes?: string
-  status: string
-  exercises: Array<{
-    id: string
-    exercise: {
-      name: string
-    }
-  }>
-}
-
-interface PersonalRecord {
-  id: string
-  exerciseId: string
-  weight?: number
-  reps?: number
-  duration?: number
-  volume?: number
-  achievedAt: string
-  exercise: {
-    name: string
-  }
-}
-
-export default function ClientProfilePage() {
+export default function AdminClientDashboardPage() {
   const params = useParams()
   const router = useRouter()
   const { toast } = useToast()
-  const [client, setClient] = useState<Client | null>(null)
-  const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([])
-  const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([])
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (params.id) {
-      fetchClientData()
+      fetchDashboardData()
     }
   }, [params.id])
 
-  const fetchClientData = async () => {
+  const fetchDashboardData = async () => {
     try {
-      // Fetch client details
-      const clientResponse = await fetch(`/api/admin/clients/${params.id}`)
-      const clientData = await clientResponse.json()
+      // Fetch using the same endpoints as clients but with admin permissions
+      const [clientRes, bookingsRes, workoutsRes, recordsRes] = await Promise.all([
+        fetch(`/api/admin/clients/${params.id}`),
+        fetch(`/api/admin/clients/${params.id}/bookings?limit=3&status=CONFIRMED`),
+        fetch(`/api/admin/clients/${params.id}/workouts?limit=3`),
+        fetch(`/api/admin/clients/${params.id}/records?limit=5&calculate=true`),
+      ])
+
+      const [clientData, bookingsData, workoutsData, recordsData] = await Promise.all([
+        clientRes.json(),
+        bookingsRes.json(),
+        workoutsRes.json(),
+        recordsRes.json(),
+      ])
 
       if (clientData.success) {
-        setClient(clientData.data)
+        setDashboardData({
+          profile: clientData.data,
+          remainingCredits: clientData.data?.remainingCredits || 0,
+          upcomingBookings: bookingsData.data || [],
+          recentWorkouts: workoutsData.data || [],
+          personalRecords: recordsData.data || [],
+          totalWorkouts: workoutsData.pagination?.total || 0,
+          totalPRs: recordsData.pagination?.total || 0,
+        })
       } else {
         toast({
           title: 'Error',
@@ -100,23 +83,7 @@ export default function ClientProfilePage() {
           variant: 'destructive',
         })
         router.push('/admin/clients')
-        return
       }
-
-      // Fetch workout sessions
-      const workoutsResponse = await fetch(`/api/admin/clients/${params.id}/workouts`)
-      const workoutsData = await workoutsResponse.json()
-      if (workoutsData.success) {
-        setWorkoutSessions(workoutsData.data || [])
-      }
-
-      // Fetch personal records
-      const recordsResponse = await fetch(`/api/admin/clients/${params.id}/records`)
-      const recordsData = await recordsResponse.json()
-      if (recordsData.success) {
-        setPersonalRecords(recordsData.data || [])
-      }
-
     } catch (error) {
       console.error('Failed to fetch client data:', error)
       toast({
@@ -130,331 +97,374 @@ export default function ClientProfilePage() {
     }
   }
 
-  const toggleClientStatus = async () => {
-    if (!client) return
-
-    try {
-      const response = await fetch(`/api/admin/clients/${client.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          isActive: !client.isActive,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success) {
-        setClient({ ...client, isActive: !client.isActive })
-        toast({
-          title: client.isActive ? 'Client deactivated' : 'Client activated',
-          description: `${client.name} has been ${client.isActive ? 'deactivated' : 'activated'}.`,
-        })
-      } else {
-        toast({
-          title: 'Error',
-          description: data.error || 'Failed to update client status',
-          variant: 'destructive',
-        })
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update client status',
-        variant: 'destructive',
-      })
-    }
-  }
-
   if (loading) {
-    return <LoadingState message="Loading client profile..." />
-  }
-
-  if (!client) {
     return (
-      <EmptyState
-        icon={User}
-        title="Client not found"
-        description="The client you're looking for doesn't exist."
-        action={
-          <Button asChild>
-            <Link href="/admin/clients">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Clients
-            </Link>
-          </Button>
-        }
-      />
+      <ProtectedLayout requireRole="ADMIN">
+        <LoadingState message="Loading client dashboard..." />
+      </ProtectedLayout>
     )
   }
 
-  return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <Button variant="ghost" asChild>
-            <Link href="/admin/clients">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Clients
-            </Link>
-          </Button>
-          
-          <div className="flex items-center space-x-2">
-            <Button asChild variant="outline">
-              <Link href={`/admin/clients/${client.id}/edit`}>
-                <Edit className="h-4 w-4 mr-2" />
-                Edit Client
+  if (!dashboardData?.profile) {
+    return (
+      <ProtectedLayout requireRole="ADMIN">
+        <EmptyState
+          title="Client not found"
+          description="The client you're looking for doesn't exist."
+          action={
+            <Button asChild>
+              <Link href="/admin/clients">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Clients
               </Link>
             </Button>
+          }
+        />
+      </ProtectedLayout>
+    )
+  }
+
+  const { profile } = dashboardData
+
+  return (
+    <ProtectedLayout requireRole="ADMIN">
+      <div className="space-y-8">
+        {/* Header - Admin viewing client */}
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost" asChild size="sm">
+                <Link href="/admin/clients">
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Clients
+                </Link>
+              </Button>
+              <Shield className="h-5 w-5 text-hf-orange" />
+              <span className="text-sm text-hf-text-secondary">Admin View</span>
+            </div>
+            <h1 className="text-3xl font-bold text-hf-text">
+              {profile.name}'s Dashboard 👋
+            </h1>
+            <p className="text-hf-text-secondary">
+              Viewing {profile.name}'s fitness journey and progress
+            </p>
+          </div>
+          <div className="flex items-center space-x-2">
             <Button asChild variant="outline">
-              <Link href={`/admin/clients/${client.id}/credits`}>
+              <Link href={`/admin/clients/${profile.id}/credits`}>
                 <CreditCard className="h-4 w-4 mr-2" />
                 Manage Credits
               </Link>
             </Button>
+            <Button asChild className="btn-gradient">
+              <Link href={`/admin/workouts/new?clientId=${profile.id}`}>
+                <Plus className="h-4 w-4 mr-2" />
+                Log Workout
+              </Link>
+            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Client Header */}
-      <div className="grid gap-6 lg:grid-cols-3 mb-8">
-        <Card className="lg:col-span-2 bg-hf-card border-hf-card">
-          <CardHeader>
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src={`https://api.dicebear.com/7.x/initials/svg?seed=${client.name}`} />
-                <AvatarFallback className="bg-gradient-orange text-white text-lg">
-                  {getInitials(client.name)}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <div className="flex items-center space-x-3 mb-2">
-                  <h1 className="text-2xl font-bold text-hf-text">{client.name}</h1>
-                  <Badge 
-                    className={
-                      client.isActive 
-                        ? 'bg-hf-success/10 text-hf-success border-hf-success/20'
-                        : 'bg-hf-error/10 text-hf-error border-hf-error/20'
-                    }
-                  >
-                    {client.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
-                </div>
-                <div className="space-y-1 text-sm text-hf-text-secondary">
-                  <div className="flex items-center space-x-2">
-                    <Mail className="h-4 w-4" />
-                    <span>{client.email}</span>
-                  </div>
-                  {client.phone && (
-                    <div className="flex items-center space-x-2">
-                      <Phone className="h-4 w-4" />
-                      <span>{client.phone}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center space-x-2">
-                    <Calendar className="h-4 w-4" />
-                    <span>Joined {formatDate(client.createdAt)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {client.fitnessGoals && (
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-hf-text">
-                  <Target className="h-4 w-4 text-hf-orange" />
-                  <span className="font-medium">Fitness Goals</span>
-                </div>
-                <p className="text-hf-text-secondary">{client.fitnessGoals}</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Stats Grid - Same as client dashboard but with admin context */}
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            title="Remaining Credits"
+            value={dashboardData.remainingCredits || 0}
+            description="Available for booking sessions"
+            icon={CreditCard}
+            trend={{
+              value: 12,
+              label: 'vs last month',
+              isPositive: true,
+            }}
+          />
+          <StatCard
+            title="Total Workouts"
+            value={dashboardData.totalWorkouts || 0}
+            description="Completed training sessions"
+            icon={Target}
+            trend={{
+              value: 8,
+              label: 'vs last month',
+              isPositive: true,
+            }}
+          />
+          <StatCard
+            title="Personal Records"
+            value={dashboardData.totalPRs || 0}
+            description="Achievements unlocked"
+            icon={Trophy}
+            trend={{
+              value: 25,
+              label: 'vs last month',
+              isPositive: true,
+            }}
+          />
+          <StatCard
+            title="This Week"
+            value="3"
+            description="Workouts completed"
+            icon={TrendingUp}
+            trend={{
+              value: 50,
+              label: 'vs last week',
+              isPositive: true,
+            }}
+          />
+        </div>
 
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader>
-            <CardTitle className="text-hf-text flex items-center">
-              <CreditCard className="h-5 w-5 mr-2 text-hf-orange" />
-              Credits
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center space-y-2">
-              <div className="text-3xl font-bold text-hf-orange">
-                {client.remainingCredits}
-              </div>
-              <p className="text-hf-text-secondary">remaining credits</p>
-              <Button asChild className="w-full mt-4 btn-gradient">
-                <Link href={`/admin/clients/${client.id}/credits`}>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Admin Actions - Similar to client quick actions but with admin capabilities */}
+          <Card className="bg-hf-card border-hf-card">
+            <CardHeader>
+              <CardTitle className="text-hf-text flex items-center">
+                <Shield className="h-5 w-5 mr-2 text-hf-orange" />
+                Admin Actions for {profile.name}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button asChild className="w-full btn-gradient justify-start">
+                <Link href={`/admin/workouts/new?clientId=${profile.id}`}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Log New Workout
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start border-hf-card">
+                <Link href={`/admin/clients/${profile.id}/workouts`}>
+                  <Target className="h-4 w-4 mr-2" />
+                  View Full Workout History
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start border-hf-card">
+                <Link href={`/admin/clients/${profile.id}/records`}>
+                  <Trophy className="h-4 w-4 mr-2" />
+                  Manage Personal Records
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start border-hf-card">
+                <Link href={`/admin/clients/${profile.id}/progress`}>
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  Progress Dashboard
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="w-full justify-start border-hf-card">
+                <Link href={`/admin/clients/${profile.id}/credits`}>
                   <CreditCard className="h-4 w-4 mr-2" />
                   Manage Credits
                 </Link>
               </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
 
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-4 mb-8">
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-hf-text-secondary flex items-center">
-              <Calendar className="h-4 w-4 mr-2" />
-              Sessions
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-hf-text">{client._count.bookings}</div>
-            <p className="text-xs text-hf-text-secondary">Total bookings</p>
-          </CardContent>
-        </Card>
+          {/* Upcoming Sessions - Same as client view */}
+          <Card className="bg-hf-card border-hf-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-hf-text flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-hf-orange" />
+                  Upcoming Sessions
+                </CardTitle>
+                <p className="text-hf-text-secondary text-sm">
+                  {profile.name}'s scheduled training sessions
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/admin/bookings?clientId=${profile.id}`}>
+                  View All
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {dashboardData.upcomingBookings?.length === 0 ? (
+                <EmptyState
+                  title="No upcoming sessions"
+                  description="This client has no scheduled sessions"
+                />
+              ) : (
+                <div className="space-y-4">
+                  {dashboardData.upcomingBookings?.slice(0, 3).map((booking: any) => (
+                    <div
+                      key={booking.id}
+                      className="flex items-center justify-between p-4 bg-hf-dark rounded-lg border border-hf-card"
+                    >
+                      <div>
+                        <p className="font-medium text-hf-text">
+                          {formatDate(booking.startTime)}
+                        </p>
+                        <p className="text-sm text-hf-text-secondary">
+                          {formatTime(booking.startTime)} - {formatTime(booking.endTime)}
+                        </p>
+                        {booking.notes && (
+                          <p className="text-xs text-hf-text-secondary mt-1">
+                            {booking.notes}
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="secondary" className="bg-hf-success/10 text-hf-success">
+                        {booking.status}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-hf-text-secondary flex items-center">
-              <Activity className="h-4 w-4 mr-2" />
-              Workouts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-hf-text">{client._count.workoutSessions}</div>
-            <p className="text-xs text-hf-text-secondary">Completed workouts</p>
-          </CardContent>
-        </Card>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Recent Workouts - Same layout as client view */}
+          <Card className="bg-hf-card border-hf-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-hf-text flex items-center">
+                  <Activity className="h-5 w-5 mr-2 text-hf-orange" />
+                  Recent Workouts
+                </CardTitle>
+                <p className="text-hf-text-secondary text-sm">
+                  {profile.name}'s latest training sessions
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/admin/clients/${profile.id}/workouts`}>
+                  View All
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {dashboardData.recentWorkouts?.length === 0 ? (
+                <EmptyState
+                  title="No workouts logged"
+                  description="No workouts have been logged for this client yet"
+                  action={
+                    <Button asChild className="btn-gradient">
+                      <Link href={`/admin/workouts/new?clientId=${profile.id}`}>
+                        Log First Workout
+                      </Link>
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-4">
+                  {dashboardData.recentWorkouts?.map((workout: any) => (
+                    <div
+                      key={workout.id}
+                      className="flex items-center justify-between p-4 bg-hf-dark rounded-lg border border-hf-card hover:bg-hf-card/50 transition-colors cursor-pointer"
+                    >
+                      <div className="flex-1">
+                        <p className="font-medium text-hf-text">
+                          {formatDate(workout.date)}
+                        </p>
+                        <p className="text-sm text-hf-text-secondary">
+                          {workout.exercises?.length || 0} exercises • {workout.duration} min
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {workout.exercises?.slice(0, 3).map((ex: any) => (
+                            <Badge key={ex.id} variant="secondary" className="text-xs">
+                              {ex.exercise?.name}
+                            </Badge>
+                          ))}
+                          {(workout.exercises?.length || 0) > 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              +{(workout.exercises?.length || 0) - 3} more
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <Badge className="bg-hf-orange/10 text-hf-orange border-hf-orange/20">
+                          {workout.status}
+                        </Badge>
+                        <Edit className="h-4 w-4 text-hf-text-secondary mt-2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-hf-text-secondary flex items-center">
-              <Trophy className="h-4 w-4 mr-2" />
-              Personal Records
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-hf-text">{client._count.personalRecords}</div>
-            <p className="text-xs text-hf-text-secondary">PRs achieved</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-hf-text-secondary flex items-center">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Purchases
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-hf-text">{client._count.creditPurchases}</div>
-            <p className="text-xs text-hf-text-secondary">Credit purchases</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card className="bg-hf-card border-hf-card">
-          <CardHeader>
-            <CardTitle className="text-hf-text flex items-center">
-              <Activity className="h-5 w-5 mr-2 text-hf-orange" />
-              Recent Workouts
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {workoutSessions.length > 0 ? (
-              <div className="space-y-4">
-                {workoutSessions.slice(0, 5).map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center justify-between p-3 bg-hf-dark rounded-lg border border-hf-card"
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex-shrink-0">
-                        <Badge className={session.status === 'COMPLETED' ? 'bg-hf-success/10 text-hf-success' : 'bg-hf-warning/10 text-hf-warning'}>
-                          {session.status === 'COMPLETED' ? 'Completed' : session.status}
+          {/* Personal Records - Same layout as client view */}
+          <Card className="bg-hf-card border-hf-card">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-hf-text flex items-center">
+                  <Trophy className="h-5 w-5 mr-2 text-hf-orange" />
+                  Personal Records
+                </CardTitle>
+                <p className="text-hf-text-secondary text-sm">
+                  {profile.name}'s latest achievements
+                </p>
+              </div>
+              <Button asChild variant="ghost" size="sm">
+                <Link href={`/admin/clients/${profile.id}/records`}>
+                  View All
+                </Link>
+              </Button>
+            </CardHeader>
+            <CardContent>
+              {dashboardData.personalRecords?.length === 0 ? (
+                <EmptyState
+                  title="No personal records yet"
+                  description="Complete training sessions to start setting records"
+                  action={
+                    <Button asChild className="btn-gradient">
+                      <Link href={`/admin/workouts/new?clientId=${profile.id}`}>
+                        Log a Workout
+                      </Link>
+                    </Button>
+                  }
+                />
+              ) : (
+                <div className="space-y-4">
+                  {dashboardData.personalRecords?.map((record: any) => (
+                    <div
+                      key={record.id}
+                      className="flex items-center justify-between p-4 bg-hf-dark rounded-lg border border-hf-card hover:bg-hf-card/50 transition-colors cursor-pointer"
+                    >
+                      <div>
+                        <p className="font-medium text-hf-text">
+                          {record.exercise?.name}
+                        </p>
+                        <p className="text-sm text-hf-text-secondary">
+                          {formatRelativeTime(record.achievedAt)}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-hf-orange">
+                          {formatPRDisplay({ weight: record.weight, reps: record.reps, duration: record.duration }, record.isBodyweight)}
+                        </p>
+                        <Badge className="bg-yellow-500/10 text-yellow-400 border-yellow-500/20 text-xs">
+                          {record.isBodyweight ? 'BW PR' : 'PR'}
                         </Badge>
                       </div>
-                      <div>
-                        <p className="font-medium text-hf-text text-sm">
-                          {formatDate(session.date)}
-                        </p>
-                        <p className="text-xs text-hf-text-secondary">
-                          {session.exercises?.length || 0} exercises • {session.duration}min
-                        </p>
-                      </div>
                     </div>
-                    <Clock className="h-4 w-4 text-hf-text-secondary" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={Activity}
-                title="No workouts yet"
-                description="This client hasn't completed any workouts."
-              />
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
+        {/* Client Profile Settings - Using unified component with admin context */}
         <Card className="bg-hf-card border-hf-card">
           <CardHeader>
             <CardTitle className="text-hf-text flex items-center">
-              <Trophy className="h-5 w-5 mr-2 text-hf-orange" />
-              Recent Personal Records
+              <Shield className="h-5 w-5 mr-2 text-hf-orange" />
+              Client Profile Settings
             </CardTitle>
+            <p className="text-hf-text-secondary">
+              Edit {profile.name}'s account information and preferences
+            </p>
           </CardHeader>
           <CardContent>
-            {personalRecords.length > 0 ? (
-              <div className="space-y-4">
-                {personalRecords.slice(0, 5).map((record) => (
-                  <div
-                    key={record.id}
-                    className="flex items-center justify-between p-3 bg-hf-dark rounded-lg border border-hf-card"
-                  >
-                    <div>
-                      <p className="font-medium text-hf-text text-sm">
-                        {record.exercise?.name}
-                      </p>
-                      <p className="text-xs text-hf-text-secondary">
-                        {formatDate(record.achievedAt)}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-hf-orange font-bold">
-                        {record.weight ? `${record.weight} lbs` : 
-                         record.duration ? `${record.duration}s` : 
-                         record.reps ? `${record.reps} reps` : 
-                         record.volume ? `${record.volume} vol` : 'PR'}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState
-                icon={Trophy}
-                title="No personal records"
-                description="This client hasn't set any personal records yet."
-              />
-            )}
+            <AccountSettings
+              clientId={profile.id}
+              isAdminViewing={true}
+              showClientFeatures={true}
+            />
           </CardContent>
         </Card>
       </div>
-
-      {/* Action Buttons */}
-      <div className="mt-8 flex justify-center">
-        <Button
-          onClick={toggleClientStatus}
-          variant={client.isActive ? 'destructive' : 'default'}
-          className={client.isActive ? '' : 'btn-gradient'}
-        >
-          {client.isActive ? 'Deactivate Client' : 'Activate Client'}
-        </Button>
-      </div>
-    </div>
+    </ProtectedLayout>
   )
 }

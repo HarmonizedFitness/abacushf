@@ -1,26 +1,29 @@
 
 import { NextRequest, NextResponse } from 'next/server'
-import { requireAdmin } from '@/lib/auth'
+import { getCurrentUser } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 
 export const dynamic = 'force-dynamic'
 
-const passwordUpdateSchema = z.object({
+const passwordChangeSchema = z.object({
   currentPassword: z.string().min(1, 'Current password is required'),
-  newPassword: z.string().min(8, 'New password must be at least 8 characters'),
+  newPassword: z.string().min(8, 'New password must be at least 8 characters long'),
 })
 
 export async function PUT(request: NextRequest) {
   try {
-    const user = await requireAdmin()
+    const user = await getCurrentUser()
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
     const body = await request.json()
-    const validatedData = passwordUpdateSchema.parse(body)
+    const validatedData = passwordChangeSchema.parse(body)
 
-    // Get current user with password
-    const currentUser = await prisma.user.findUnique({
+    // Get current user with password hash
+    const userWithPassword = await prisma.user.findUnique({
       where: { id: user.id },
       select: {
         id: true,
@@ -28,14 +31,17 @@ export async function PUT(request: NextRequest) {
       },
     })
 
-    if (!currentUser) {
-      return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 })
+    if (!userWithPassword || !userWithPassword.password) {
+      return NextResponse.json(
+        { success: false, error: 'User not found or password not set' },
+        { status: 404 }
+      )
     }
 
     // Verify current password
     const isCurrentPasswordValid = await bcrypt.compare(
       validatedData.currentPassword,
-      currentUser.password
+      userWithPassword.password
     )
 
     if (!isCurrentPasswordValid) {
