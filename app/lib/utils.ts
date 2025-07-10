@@ -399,3 +399,72 @@ export function isEqual(a: any, b: any): boolean {
   
   return false
 }
+
+// Workout utility functions
+export function getTotalExerciseCount(workout: any): number {
+  if (!workout) return 0
+  
+  // Count ungrouped exercises
+  const ungroupedCount = workout.exercises?.length || 0
+  
+  // Count grouped exercises
+  const groupedCount = workout.groups?.reduce((total: number, group: any) => {
+    return total + (group.exercises?.length || 0)
+  }, 0) || 0
+  
+  return ungroupedCount + groupedCount
+}
+
+export function getAllExercises(workout: any) {
+  if (!workout) return []
+  
+  const allExercises: any[] = []
+  
+  // Add ungrouped exercises
+  if (workout.exercises) {
+    workout.exercises.forEach((ex: any) => {
+      allExercises.push({
+        ...ex,
+        isGrouped: false
+      })
+    })
+  }
+  
+  // Add grouped exercises
+  if (workout.groups) {
+    workout.groups.forEach((group: any) => {
+      if (group.exercises) {
+        group.exercises.forEach((ex: any) => {
+          allExercises.push({
+            ...ex,
+            isGrouped: true,
+            groupInfo: {
+              name: group.name,
+              type: group.type,
+              rounds: group.rounds
+            }
+          })
+        })
+      }
+    })
+  }
+  
+  return allExercises
+}
+
+export function generateWorkoutIdentifier(clientName: string, date: string): string {
+  if (!clientName || !date) return 'Unknown'
+  
+  const workoutDate = new Date(date)
+  const day = workoutDate.getDate().toString().padStart(2, '0')
+  const month = workoutDate.toLocaleDateString('en-US', { month: 'short' }).toUpperCase()
+  const year = workoutDate.getFullYear().toString().slice(-2)
+  
+  // Clean client name - take first name and first letter of last name
+  const nameParts = clientName.trim().split(' ')
+  const firstName = nameParts[0] || ''
+  const lastInitial = nameParts[1]?.charAt(0) || ''
+  const cleanName = (firstName + lastInitial).replace(/[^a-zA-Z]/g, '')
+  
+  return `${cleanName}_${day}${month}${year}`
+}

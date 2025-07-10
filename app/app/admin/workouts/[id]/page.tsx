@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
-import { formatDate, formatDuration, getInitials } from '@/lib/utils'
+import { formatDate, formatDuration, getInitials, generateWorkoutIdentifier } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
@@ -334,7 +334,7 @@ export default function AdminWorkoutDetailPage() {
         <div className="space-y-6">
           {/* Header */}
           <PageHeader
-            title="Workout Details"
+            title={generateWorkoutIdentifier(workout.user.name, workout.date)}
             description={`${formatDate(workout.date)} • ${getAllExercises().length} exercises`}
             showHome={true}
             showBack={true}

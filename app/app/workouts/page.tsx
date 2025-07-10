@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DataTable, Column } from '@/components/common/data-table'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
-import { formatDate, formatDuration } from '@/lib/utils'
+import { formatDate, formatDuration, getTotalExerciseCount, getAllExercises } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
@@ -35,15 +35,58 @@ interface WorkoutSession {
   duration: number
   status: string
   notes?: string
+  groups: Array<{
+    id: string
+    name?: string
+    type: string
+    order: number
+    rounds?: number
+    restBetweenRounds?: number
+    exercises: Array<{
+      id: string
+      exerciseId: string
+      order: number
+      orderInGroup: number
+      notes?: string
+      exercise: {
+        id: string
+        name: string
+        category: string
+        muscleGroups: string[]
+      }
+      sets: Array<{
+        id: string
+        setNumber: number
+        reps?: number
+        weight?: number
+        duration?: number
+        restTime?: number
+        notes?: string
+        isDropSet: boolean
+      }>
+    }>
+  }>
   exercises: Array<{
     id: string
+    exerciseId: string
+    order: number
+    notes?: string
     exercise: {
+      id: string
       name: string
       category: string
+      muscleGroups: string[]
     }
-    sets: number
-    reps: number
-    weight?: number
+    sets: Array<{
+      id: string
+      setNumber: number
+      reps?: number
+      weight?: number
+      duration?: number
+      restTime?: number
+      notes?: string
+      isDropSet: boolean
+    }>
   }>
 }
 
@@ -130,23 +173,28 @@ export default function WorkoutsPage() {
     {
       key: 'exercises',
       title: 'Exercises',
-      render: (exercises) => (
-        <div className="space-y-1">
-          <p className="text-sm text-hf-text">{exercises?.length || 0} exercises</p>
-          <div className="flex flex-wrap gap-1">
-            {exercises?.slice(0, 2).map((ex: any) => (
-              <Badge key={ex.id} variant="secondary" className="text-xs">
-                {ex.exercise?.name}
-              </Badge>
-            ))}
-            {(exercises?.length || 0) > 2 && (
-              <Badge variant="secondary" className="text-xs">
-                +{(exercises?.length || 0) - 2}
-              </Badge>
-            )}
+      render: (_, workout) => {
+        const totalExercises = getTotalExerciseCount(workout)
+        const allExercises = getAllExercises(workout)
+        
+        return (
+          <div className="space-y-1">
+            <p className="text-sm text-hf-text">{totalExercises} exercises</p>
+            <div className="flex flex-wrap gap-1">
+              {allExercises?.slice(0, 2).map((ex: any) => (
+                <Badge key={ex.id} variant="secondary" className="text-xs">
+                  {ex.exercise?.name}
+                </Badge>
+              ))}
+              {totalExercises > 2 && (
+                <Badge variant="secondary" className="text-xs">
+                  +{totalExercises - 2}
+                </Badge>
+              )}
+            </div>
           </div>
-        </div>
-      ),
+        )
+      },
     },
     {
       key: 'duration',
@@ -181,7 +229,8 @@ export default function WorkoutsPage() {
   ]
 
   const filteredWorkouts = workouts.filter((workout) => {
-    const matchesSearch = workout.exercises?.some((ex) =>
+    const allExercises = getAllExercises(workout)
+    const matchesSearch = allExercises?.some((ex) =>
       ex.exercise?.name.toLowerCase().includes(searchQuery.toLowerCase())
     ) || workout.notes?.toLowerCase().includes(searchQuery.toLowerCase())
     

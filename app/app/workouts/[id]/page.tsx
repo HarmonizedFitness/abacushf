@@ -20,7 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
-import { formatDate, formatDuration } from '@/lib/utils'
+import { formatDate, formatDuration, getAllExercises, getTotalExerciseCount, generateWorkoutIdentifier } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 
@@ -198,66 +198,7 @@ export default function WorkoutDetailPage() {
     return colors[status as keyof typeof colors] || 'bg-gray-500/10 text-gray-400'
   }
 
-  const getAllExercises = () => {
-    if (!workout) return []
-    
-    const allExercises: Array<{
-      id: string
-      exercise: {
-        id: string
-        name: string
-        description?: string
-        category: string
-        muscleGroups: string[]
-        equipment?: string
-      }
-      sets: Array<{
-        id: string
-        setNumber: number
-        reps?: number
-        weight?: number
-        duration?: number
-        restTime?: number
-        notes?: string
-        isDropSet: boolean
-      }>
-      notes?: string
-      groupInfo?: {
-        name?: string
-        type: string
-        rounds?: number
-      }
-    }> = []
 
-    // Add ungrouped exercises
-    workout.exercises?.forEach((ex, index) => {
-      allExercises.push({
-        id: ex.id,
-        exercise: ex.exercise,
-        sets: ex.sets || [],
-        notes: ex.notes
-      })
-    })
-
-    // Add grouped exercises
-    workout.groups?.forEach((group) => {
-      group.exercises?.forEach((ex) => {
-        allExercises.push({
-          id: ex.id,
-          exercise: ex.exercise,
-          sets: ex.sets || [],
-          notes: ex.notes,
-          groupInfo: {
-            name: group.name,
-            type: group.type,
-            rounds: group.rounds
-          }
-        })
-      })
-    })
-
-    return allExercises
-  }
 
   if (loading) {
     return (
@@ -298,10 +239,10 @@ export default function WorkoutDetailPage() {
               </Button>
             </div>
             <h1 className="text-3xl font-bold text-hf-text mt-2">
-              Workout Details
+              {session?.user?.name ? generateWorkoutIdentifier(session.user.name, workout.date) : 'Workout Details'}
             </h1>
             <p className="text-hf-text-secondary">
-              {formatDate(workout.date)} • {(workout.exercises?.length || 0) + (workout.groups?.reduce((total, group) => total + (group.exercises?.length || 0), 0) || 0)} exercises
+              {formatDate(workout.date)} • {getTotalExerciseCount(workout)} exercises
             </p>
           </div>
           {isAdmin && (
@@ -391,7 +332,7 @@ export default function WorkoutDetailPage() {
                 {workout.status}
               </Badge>
               <p className="text-xs text-hf-text-secondary mt-1">
-                {(workout.exercises?.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0) || 0) + (workout.groups?.reduce((sum, group) => sum + (group.exercises?.reduce((exSum, ex) => exSum + (ex.sets?.length || 0), 0) || 0), 0) || 0)} total sets
+                {getAllExercises(workout).reduce((sum, ex) => sum + (ex.sets?.length || 0), 0)} total sets
               </p>
             </CardContent>
           </Card>
@@ -414,7 +355,7 @@ export default function WorkoutDetailPage() {
           <CardHeader>
             <CardTitle className="text-hf-text flex items-center">
               <Dumbbell className="h-5 w-5 mr-2 text-hf-orange" />
-              Exercises ({getAllExercises().length})
+              Exercises ({getTotalExerciseCount(workout)})
             </CardTitle>
             <CardDescription className="text-hf-text-secondary">
               Detailed breakdown of your training session
@@ -422,8 +363,8 @@ export default function WorkoutDetailPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              {getAllExercises().map((exercise, index) => {
-                const exerciseVolume = exercise.sets.reduce((total, set) => {
+              {getAllExercises(workout).map((exercise, index) => {
+                const exerciseVolume = exercise.sets.reduce((total: number, set: any) => {
                   if (set.weight && set.reps) {
                     return total + (Number(set.weight) * set.reps)
                   }
@@ -448,7 +389,7 @@ export default function WorkoutDetailPage() {
                           )}
                         </div>
                         <div className="flex flex-wrap gap-1 mt-2">
-                          {exercise.exercise.muscleGroups?.map((muscle) => (
+                          {exercise.exercise.muscleGroups?.map((muscle: string) => (
                             <Badge key={muscle} variant="secondary" className="text-xs">
                               {muscle}
                             </Badge>
@@ -469,7 +410,7 @@ export default function WorkoutDetailPage() {
                     <div className="space-y-3 mb-3">
                       <div className="text-sm font-medium text-hf-text">Sets ({exercise.sets.length})</div>
                       <div className="grid gap-3">
-                        {exercise.sets.map((set, setIndex) => (
+                        {exercise.sets.map((set: any, setIndex: number) => (
                           <div key={set.id} className="flex items-center justify-between p-3 bg-hf-card rounded-lg">
                             <div className="flex items-center space-x-4">
                               <div className="text-sm font-medium text-hf-text">
