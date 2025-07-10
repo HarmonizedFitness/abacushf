@@ -151,8 +151,8 @@ export function WorkoutExerciseGroup({
 
   return (
     <Card className="bg-hf-dark border-hf-card">
-      <CardHeader className="pb-3">
-        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+        <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <CollapsibleTrigger asChild>
@@ -202,145 +202,145 @@ export function WorkoutExerciseGroup({
               </Button>
             </div>
           </div>
-        </Collapsible>
-      </CardHeader>
+        </CardHeader>
 
-      <CollapsibleContent>
-        <CardContent className="pt-0">
-          {isEditing ? (
-            <div className="space-y-4 mb-4 p-4 bg-hf-card rounded-lg">
-              <div className="grid grid-cols-2 gap-4">
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {isEditing ? (
+              <div className="space-y-4 mb-4 p-4 bg-hf-card rounded-lg">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs text-hf-text-secondary">Group Name</Label>
+                    <Input
+                      placeholder="Optional group name"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                    />
+                  </div>
+                  {group.type === 'CIRCUIT' && (
+                    <>
+                      <div className="space-y-2">
+                        <Label className="text-xs text-hf-text-secondary">Rounds</Label>
+                        <Input
+                          type="number"
+                          value={editRounds}
+                          onChange={(e) => setEditRounds(Number(e.target.value))}
+                          min={1}
+                        />
+                      </div>
+                      <div className="space-y-2 col-span-2">
+                        <Label className="text-xs text-hf-text-secondary">Rest Between Rounds (seconds)</Label>
+                        <Input
+                          type="number"
+                          value={editRestBetweenRounds}
+                          onChange={(e) => setEditRestBetweenRounds(Number(e.target.value))}
+                          min={0}
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-hf-text-secondary">Group Name</Label>
-                  <Input
-                    placeholder="Optional group name"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
+                  <Label className="text-xs text-hf-text-secondary">Group Notes</Label>
+                  <Textarea
+                    placeholder="Notes about this group..."
+                    value={editNotes}
+                    onChange={(e) => setEditNotes(e.target.value)}
+                    rows={2}
                   />
                 </div>
+                <div className="flex items-center space-x-2">
+                  <Button onClick={handleSaveEdit} size="sm" className="btn-gradient">
+                    Save
+                  </Button>
+                  <Button onClick={handleCancelEdit} variant="outline" size="sm">
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {group.notes && (
+                  <div className="mb-4 p-3 bg-hf-card rounded-lg">
+                    <p className="text-sm text-hf-text-secondary">{group.notes}</p>
+                  </div>
+                )}
+                
                 {group.type === 'CIRCUIT' && (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs text-hf-text-secondary">Rounds</Label>
-                      <Input
-                        type="number"
-                        value={editRounds}
-                        onChange={(e) => setEditRounds(Number(e.target.value))}
-                        min={1}
-                      />
-                    </div>
-                    <div className="space-y-2 col-span-2">
-                      <Label className="text-xs text-hf-text-secondary">Rest Between Rounds (seconds)</Label>
-                      <Input
-                        type="number"
-                        value={editRestBetweenRounds}
-                        onChange={(e) => setEditRestBetweenRounds(Number(e.target.value))}
-                        min={0}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs text-hf-text-secondary">Group Notes</Label>
-                <Textarea
-                  placeholder="Notes about this group..."
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  rows={2}
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button onClick={handleSaveEdit} size="sm" className="btn-gradient">
-                  Save
-                </Button>
-                <Button onClick={handleCancelEdit} variant="outline" size="sm">
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <>
-              {group.notes && (
-                <div className="mb-4 p-3 bg-hf-card rounded-lg">
-                  <p className="text-sm text-hf-text-secondary">{group.notes}</p>
-                </div>
-              )}
-              
-              {group.type === 'CIRCUIT' && (
-                <div className="mb-4 p-3 bg-hf-card rounded-lg">
-                  <div className="flex items-center space-x-4 text-sm">
-                    <div className="flex items-center space-x-2">
-                      <Hash className="h-4 w-4 text-hf-text-secondary" />
-                      <span className="text-hf-text-secondary">Rounds:</span>
-                      <span className="text-hf-text">{group.rounds || 1}</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Clock className="h-4 w-4 text-hf-text-secondary" />
-                      <span className="text-hf-text-secondary">Rest between rounds:</span>
-                      <span className="text-hf-text">{group.restBetweenRounds || 60}s</span>
+                  <div className="mb-4 p-3 bg-hf-card rounded-lg">
+                    <div className="flex items-center space-x-4 text-sm">
+                      <div className="flex items-center space-x-2">
+                        <Hash className="h-4 w-4 text-hf-text-secondary" />
+                        <span className="text-hf-text-secondary">Rounds:</span>
+                        <span className="text-hf-text">{group.rounds || 1}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Clock className="h-4 w-4 text-hf-text-secondary" />
+                        <span className="text-hf-text-secondary">Rest between rounds:</span>
+                        <span className="text-hf-text">{group.restBetweenRounds || 60}s</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
-            </>
-          )}
+                )}
+              </>
+            )}
 
-          <div className="space-y-4">
-            {group.exercises.map((exercise, index) => (
-              <div key={exercise.id} className="relative">
-                <div className="absolute left-2 top-4 z-10">
-                  <Badge variant="secondary" className="text-xs">
-                    {group.type === 'SUPERSET' ? `A${index + 1}` : 
-                     group.type === 'CIRCUIT' ? `${index + 1}` : 
-                     `${index + 1}`}
-                  </Badge>
-                </div>
-                
-                {/* Body Weight Toggle for Grouped Exercises */}
-                {onToggleBodyWeight && (
-                  <div className="absolute top-2 right-2 z-10">
-                    <Button
-                      variant={bodyWeightExercises.has(exercise.id) ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => onToggleBodyWeight(exercise.id)}
-                      className={`text-xs px-2 py-1 ${
-                        bodyWeightExercises.has(exercise.id) 
-                          ? 'bg-blue-500 text-white' 
-                          : 'border-blue-300 text-blue-600 hover:bg-blue-50'
-                      }`}
-                    >
-                      BW
-                    </Button>
+            <div className="space-y-4">
+              {group.exercises.map((exercise, index) => (
+                <div key={exercise.id} className="relative">
+                  <div className="absolute left-2 top-4 z-10">
+                    <Badge variant="secondary" className="text-xs">
+                      {group.type === 'SUPERSET' ? `A${index + 1}` : 
+                       group.type === 'CIRCUIT' ? `${index + 1}` : 
+                       `${index + 1}`}
+                    </Badge>
                   </div>
-                )}
-                
-                <WorkoutExerciseItem
-                  exercise={exercise}
-                  selected={false}
-                  onSelect={() => {}}
-                  onUpdateExercise={(id, updates) => {
-                    const updatedExercises = group.exercises.map(ex =>
-                      ex.id === id ? { ...ex, ...updates } : ex
-                    )
-                    onUpdateGroup(group.id, { exercises: updatedExercises })
-                  }}
-                  onRemoveExercise={() => {
-                    const updatedExercises = group.exercises.filter(ex => ex.id !== exercise.id)
-                    onUpdateGroup(group.id, { exercises: updatedExercises })
-                  }}
-                  onAddSet={() => onAddSet(exercise.id)}
-                  onRemoveSet={(setId) => onRemoveSet(exercise.id, setId)}
-                  onUpdateSet={(exerciseId, setId, updates) => onUpdateSet(exerciseId, setId, updates)}
-                  isGrouped={true}
-                  isBodyWeight={bodyWeightExercises.has(exercise.id)}
-                  currentBodyWeight={currentBodyWeight}
-                />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </CollapsibleContent>
+                  
+                  {/* Body Weight Toggle for Grouped Exercises */}
+                  {onToggleBodyWeight && (
+                    <div className="absolute top-2 right-2 z-10">
+                      <Button
+                        variant={bodyWeightExercises.has(exercise.id) ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => onToggleBodyWeight(exercise.id)}
+                        className={`text-xs px-2 py-1 ${
+                          bodyWeightExercises.has(exercise.id) 
+                            ? 'bg-blue-500 text-white' 
+                            : 'border-blue-300 text-blue-600 hover:bg-blue-50'
+                        }`}
+                      >
+                        BW
+                      </Button>
+                    </div>
+                  )}
+                  
+                  <WorkoutExerciseItem
+                    exercise={exercise}
+                    selected={false}
+                    onSelect={() => {}}
+                    onUpdateExercise={(id, updates) => {
+                      const updatedExercises = group.exercises.map(ex =>
+                        ex.id === id ? { ...ex, ...updates } : ex
+                      )
+                      onUpdateGroup(group.id, { exercises: updatedExercises })
+                    }}
+                    onRemoveExercise={() => {
+                      const updatedExercises = group.exercises.filter(ex => ex.id !== exercise.id)
+                      onUpdateGroup(group.id, { exercises: updatedExercises })
+                    }}
+                    onAddSet={() => onAddSet(exercise.id)}
+                    onRemoveSet={(setId) => onRemoveSet(exercise.id, setId)}
+                    onUpdateSet={(exerciseId, setId, updates) => onUpdateSet(exerciseId, setId, updates)}
+                    isGrouped={true}
+                    isBodyWeight={bodyWeightExercises.has(exercise.id)}
+                    currentBodyWeight={currentBodyWeight}
+                  />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
     </Card>
   )
 }
