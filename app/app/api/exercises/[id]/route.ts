@@ -24,10 +24,7 @@ export async function GET(
             personalRecords: true,
           },
         },
-        favoritedBy: {
-          where: { id: user.id },
-          select: { id: true },
-        },
+
         personalRecords: {
           where: { userId: user.id },
           orderBy: { achievedAt: 'desc' },
@@ -43,12 +40,10 @@ export async function GET(
       )
     }
 
-    // Add isFavorite flag and personal record
+    // Add personal record and clean response
     const exerciseWithDetails = {
       ...exercise,
-      isFavorite: exercise.favoritedBy.length > 0,
       personalRecord: exercise.personalRecords[0] || null,
-      favoritedBy: undefined, // Remove from response
       personalRecords: undefined, // Remove from response
     }
 
@@ -91,6 +86,9 @@ export async function PATCH(
       category, 
       muscleGroups, 
       equipment,
+      difficulty,
+      forceType,
+      isFavorite,
       imageUrl,
       videoUrl,
       isActive
@@ -115,6 +113,9 @@ export async function PATCH(
     if (category) updateData.category = category.trim()
     if (muscleGroups && Array.isArray(muscleGroups)) updateData.muscleGroups = muscleGroups
     if (equipment !== undefined) updateData.equipment = equipment?.trim() || null
+    if (difficulty !== undefined) updateData.difficulty = difficulty?.trim() || null
+    if (forceType !== undefined) updateData.forceType = forceType?.trim() || null
+    if (isFavorite !== undefined) updateData.isFavorite = Boolean(isFavorite)
     if (imageUrl !== undefined) updateData.imageUrl = imageUrl?.trim() || null
     if (videoUrl !== undefined) updateData.videoUrl = videoUrl?.trim() || null
     if (isActive !== undefined) updateData.isActive = isActive

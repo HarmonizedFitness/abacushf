@@ -22,6 +22,7 @@ import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { Pagination } from '@/components/common/pagination'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/navigation/page-header'
+import { useSession } from 'next-auth/react'
 import Image from 'next/image'
 
 interface Exercise {
@@ -31,8 +32,10 @@ interface Exercise {
   category: string
   muscleGroups: string[]
   equipment?: string
-  imageUrl?: string
+  difficulty?: string
+  forceType?: string
   isFavorite: boolean
+  imageUrl?: string
   _count: {
     favoritedBy: number
     workoutExercises: number
@@ -49,7 +52,9 @@ export default function ExercisesPage() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
 
+  const { data: session } = useSession()
   const { toast } = useToast()
+  const isAdmin = session?.user?.role === 'ADMIN'
 
   const categories = [
     'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'
@@ -89,9 +94,26 @@ export default function ExercisesPage() {
   }
 
   const toggleFavorite = async (exerciseId: string, isFavorite: boolean) => {
+    // Only allow admins to toggle global favorites
+    if (!isAdmin) {
+      toast({
+        title: 'Admin Only',
+        description: 'Only administrators can manage exercise favorites.',
+        variant: 'destructive',
+      })
+      return
+    }
+
     try {
-      const method = isFavorite ? 'DELETE' : 'POST'
-      const response = await fetch(`/api/exercises/${exerciseId}/favorite`, { method })
+      const response = await fetch(`/api/exercises/${exerciseId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isFavorite: !isFavorite
+        })
+      })
 
       if (response.ok) {
         setExercises(exercises.map(ex => 
@@ -99,13 +121,16 @@ export default function ExercisesPage() {
         ))
         toast({
           title: isFavorite ? 'Removed from favorites' : 'Added to favorites',
-          description: `Exercise ${isFavorite ? 'removed from' : 'added to'} your favorites.`,
+          description: `Exercise ${isFavorite ? 'removed from' : 'added to'} global favorites.`,
         })
+      } else {
+        const data = await response.json()
+        throw new Error(data.error || 'Failed to update favorites')
       }
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: 'Error',
-        description: 'Failed to update favorites. Please try again.',
+        description: error.message || 'Failed to update favorites. Please try again.',
         variant: 'destructive',
       })
     }
@@ -240,7 +265,14 @@ export default function ExercisesPage() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {exercises.map((exercise) => (
-              <Card key={exercise.id} className="bg-hf-card border-hf-card card-hover">
+              <Card 
+                key={exercise.id} 
+                className={`bg-hf-card border-hf-card card-hover transition-all duration-300 ${
+                  exercise.isFavorite 
+                    ? 'ring-2 ring-orange-500 shadow-lg shadow-orange-500/20 bg-gradient-to-br from-orange-50/5 to-transparent' 
+                    : ''
+                }`}
+              >
                 <CardHeader className="pb-4">
                   {exercise.imageUrl && (
                     <div className="relative aspect-video bg-hf-dark rounded-lg overflow-hidden mb-4">
@@ -255,25 +287,35 @@ export default function ExercisesPage() {
                   
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <CardTitle className="text-hf-text text-lg">{exercise.name}</CardTitle>
+                      <div className="flex items-center gap-2 mb-1">
+                        <CardTitle className="text-hf-text text-lg">{exercise.name}</CardTitle>
+                        {exercise.isFavorite && (
+                          <div className="flex items-center text-orange-500">
+                            <Heart className="h-4 w-4 fill-current" />
+                          </div>
+                        )}
+                      </div>
                       <CardDescription className="text-hf-text-secondary mt-1">
                         {exercise.description || 'No description available'}
                       </CardDescription>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => toggleFavorite(exercise.id, exercise.isFavorite)}
-                      className="ml-2 flex-shrink-0"
-                    >
-                      <Heart
-                        className={`h-5 w-5 ${
-                          exercise.isFavorite
-                            ? 'fill-hf-orange text-hf-orange'
-                            : 'text-hf-text-secondary hover:text-hf-orange'
-                        }`}
-                      />
-                    </Button>
+                    {isAdmin && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => toggleFavorite(exercise.id, exercise.isFavorite)}
+                        className="ml-2 flex-shrink-0"
+                        title={exercise.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                      >
+                        <Heart
+                          className={`h-5 w-5 ${
+                            exercise.isFavorite
+                              ? 'fill-orange-500 text-orange-500'
+                              : 'text-hf-text-secondary hover:text-orange-500'
+                          }`}
+                        />
+                      </Button>
+                    )}
                   </div>
 
                   <div className="flex flex-wrap gap-2 mt-3">
@@ -283,6 +325,16 @@ export default function ExercisesPage() {
                     {exercise.equipment && (
                       <Badge variant="secondary" className="text-xs">
                         {exercise.equipment}
+                      </Badge>
+                    )}
+                    {exercise.difficulty && (
+                      <Badge variant="outline" className="text-xs border-blue-200 text-blue-600">
+                        {exercise.difficulty}
+                      </Badge>
+                    )}
+                    {exercise.forceType && (
+                      <Badge variant="outline" className="text-xs border-green-200 text-green-600">
+                        {exercise.forceType}
                       </Badge>
                     )}
                   </div>

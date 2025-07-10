@@ -1,3 +1,7 @@
+
+> dev
+> next dev
+
   ▲ Next.js 14.2.28
   - Local:        http://localhost:3000
   - Environments: .env
@@ -6,189 +10,21 @@
 
  ✓ Starting...
  ✓ Ready in 2.7s
- ○ Compiling /middleware ...
- ✓ Compiled /middleware in 634ms (174 modules)
+ ✓ Compiled /middleware in 234ms (174 modules)
  ○ Compiling / ...
- ✓ Compiled / in 4.5s (686 modules)
- ✓ Compiled in 536ms (332 modules)
- GET / 200 in 5040ms
+ ✓ Compiled / in 2.8s (679 modules)
+ GET / 200 in 3251ms
+ ✓ Compiled in 538ms (332 modules)
+ GET / 200 in 74ms
  ○ Compiling /api/auth/[...nextauth] ...
- ✓ Compiled /api/auth/[...nextauth] in 1589ms (591 modules)
- ○ Compiling /login ...
+ ✓ Compiled /api/auth/[...nextauth] in 656ms (591 modules)
 [next-auth][warn][DEBUG_ENABLED] 
 https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/session 200 in 2355ms
- GET /api/auth/session 200 in 2270ms
- GET /api/auth/session 200 in 2269ms
- GET /api/auth/session 200 in 2356ms
- ✓ Compiled /login in 838ms (955 modules)
- GET / 200 in 96ms
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/providers 200 in 41ms
- GET /api/auth/csrf 200 in 24ms
- POST /api/auth/callback/credentials 401 in 442ms
- GET /api/auth/providers 200 in 39ms
- GET /api/auth/csrf 200 in 27ms
- POST /api/auth/callback/credentials 401 in 349ms
- GET /api/auth/providers 200 in 35ms
- GET /api/auth/csrf 200 in 21ms
- POST /api/auth/callback/credentials 401 in 360ms
- GET /api/auth/providers 200 in 31ms
- GET /api/auth/csrf 200 in 32ms
- POST /api/auth/callback/credentials 200 in 344ms
+ GET /api/auth/session 200 in 1323ms
+ GET /api/auth/session 200 in 46ms
+ GET /api/auth/session 200 in 32ms
  GET /api/auth/session 200 in 33ms
- ○ Compiling /admin/dashboard ...
- ✓ Compiled /admin/dashboard in 1689ms (1145 modules)
- ✓ Compiled /api/admin/analytics in 295ms (716 modules)
- ✓ Compiled (763 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 757ms
- GET /api/notifications?limit=10 200 in 790ms
- GET /api/admin/analytics 200 in 810ms
- GET /api/admin/analytics 200 in 485ms
- ○ Compiling /admin/analytics ...
- ✓ Compiled /admin/analytics in 766ms (1255 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 68ms
- GET /api/notifications?limit=10 200 in 63ms
- GET /api/admin/analytics?timeRange=6months 200 in 110ms
- GET /api/admin/analytics?timeRange=6months 200 in 110ms
- GET /api/admin/analytics?timeRange=3months 200 in 57ms
- GET /api/admin/analytics?timeRange=3months 200 in 60ms
- ○ Compiling /admin/workouts ...
- ✓ Compiled /admin/workouts in 731ms (1319 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 52ms
- ✓ Compiled /api/admin/clients in 202ms (818 modules)
- ✓ Compiled in 0ms (823 modules)
- ✓ Compiled in 0ms (823 modules)
- ✓ Compiled in 1ms (823 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/admin/workouts? 200 in 875ms
- GET /api/admin/workouts? 200 in 884ms
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 785ms
- GET /api/admin/clients 200 in 1104ms
- GET /api/admin/clients 200 in 839ms
- ○ Compiling /admin/clients ...
- ✓ Compiled /admin/clients in 522ms (1341 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 47ms
- GET /api/notifications?limit=10 200 in 68ms
- GET /api/admin/clients 200 in 82ms
- GET /api/admin/clients 200 in 72ms
- ○ Compiling /admin/exercises ...
- ✓ Compiled /admin/exercises in 820ms (1370 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /admin/exercises?_rsc=19646 200 in 52ms
- ✓ Compiled /admin/dashboard in 212ms (739 modules)
- ✓ Compiled /api/admin/analytics in 230ms (768 modules)
- ✓ Compiled (815 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 214ms
- GET /api/notifications?limit=10 200 in 515ms
- GET /api/admin/analytics 200 in 488ms
- GET /api/admin/analytics 200 in 539ms
- GET /admin/exercises?_rsc=rfulk 200 in 43ms
- GET /api/notifications?limit=10 200 in 49ms
- GET /api/notifications?limit=10 200 in 51ms
- GET /api/admin/analytics 200 in 89ms
- GET /api/admin/analytics 200 in 84ms
- ✓ Compiled /admin/workouts in 209ms (835 modules)
- ✓ Compiled /api/admin/workouts in 189ms (837 modules)
- ✓ Compiled (839 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 468ms
- GET /api/notifications?limit=10 200 in 459ms
- GET /api/admin/workouts? 200 in 461ms
- GET /api/admin/clients 200 in 474ms
- GET /api/admin/workouts? 200 in 467ms
- GET /api/admin/clients 200 in 151ms
- ○ Compiling /admin/workouts/new ...
- ✓ Compiled /admin/workouts/new in 944ms (1419 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 45ms
- GET /api/admin/clients 200 in 74ms
- ✓ Compiled /api/exercises in 226ms (875 modules)
- ✓ Compiled in 0ms (875 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/admin/clients 200 in 510ms
- ✓ Compiled in 1ms (875 modules)
- ✓ Compiled in 0ms (875 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/exercises?limit=100 200 in 927ms
- GET /api/exercises?limit=100 200 in 928ms
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 848ms
- ✓ Compiled /admin/clients in 219ms (884 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/notifications?limit=10 200 in 51ms
- GET /api/notifications?limit=10 200 in 53ms
- GET /api/admin/clients 200 in 68ms
- GET /api/admin/clients 200 in 64ms
- ○ Compiling /admin/clients/[id] ...
- ✓ Compiled /admin/clients/[id] in 748ms (1439 modules)
- ✓ Compiled /api/admin/clients/[id] in 235ms (892 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv 200 in 750ms
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv 200 in 742ms
- ✓ Compiled /api/admin/clients/[id]/workouts in 219ms (894 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv/workouts 200 in 697ms
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv/workouts 200 in 710ms
- ✓ Compiled /api/admin/clients/[id]/records in 241ms (896 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv/records 200 in 735ms
- GET /api/admin/clients/cmcu2cbvg0003qpry4drovwqv/records 200 in 737ms
- GET /api/notifications?limit=10 200 in 46ms
- GET /api/notifications?limit=10 200 in 58ms
- GET /api/admin/clients 200 in 59ms
- GET /api/admin/clients 200 in 85ms
- ✓ Compiled /api/notifications/[id] in 284ms (890 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- PATCH /api/notifications/cmcw1of64001ssat7bay76exk 200 in 787ms
- PATCH /api/notifications/cmcw1p01h001psayo8w17ll9w 200 in 38ms
- PATCH /api/notifications/cmcw1p01h001qsayog65tr3kl 200 in 38ms
- PATCH /api/notifications/cmcw1of64001rsat7kp9x5v71 200 in 37ms
- ✓ Compiled /api/auth/[...nextauth] in 166ms (629 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/csrf 200 in 270ms
-User signed out: john@doe.com
- POST /api/auth/signout 200 in 27ms
- ✓ Compiled / in 162ms (622 modules)
- GET / 200 in 343ms
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/session 200 in 56ms
- GET /api/auth/session 200 in 66ms
- GET /api/auth/session 200 in 67ms
- GET /api/auth/session 200 in 75ms
- ✓ Compiled /login in 168ms (645 modules)
-[next-auth][warn][DEBUG_ENABLED] 
-https://next-auth.js.org/warnings#debug_enabled
- GET /api/auth/providers 200 in 41ms
- GET /api/auth/csrf 200 in 21ms
- POST /api/auth/callback/credentials 401 in 359ms
- GET /api/auth/providers 200 in 35ms
- GET /api/auth/csrf 200 in 50ms
- POST /api/auth/callback/credentials 401 in 352ms
+ ○ Compiling /login ...
+ ✓ Compiled /login in 769ms (955 modules)
+ GET /login 200 in 945ms
+[?25h

@@ -39,11 +39,8 @@ export async function GET(request: NextRequest) {
     }
 
     if (favorites) {
-      where.favoritedBy = {
-        some: {
-          id: user.id,
-        },
-      }
+      // Use global admin-controlled favorites
+      where.isFavorite = true
     }
 
     const [exercises, total] = await Promise.all([
@@ -59,25 +56,21 @@ export async function GET(request: NextRequest) {
               workoutExercises: true,
             },
           },
-          favoritedBy: {
-            where: { id: user.id },
-            select: { id: true },
-          },
         },
       }),
       prisma.exercise.count({ where }),
     ])
 
-    // Add isFavorite flag
-    const exercisesWithFavorites = exercises.map((exercise) => ({
+    // Process exercises (isFavorite is now directly from database)
+    const processedExercises = exercises.map((exercise) => ({
       ...exercise,
-      isFavorite: exercise.favoritedBy.length > 0,
-      favoritedBy: undefined, // Remove from response
+      // Remove favoritedBy from response for cleaner API
+      favoritedBy: undefined,
     }))
 
     return NextResponse.json({
       success: true,
-      data: exercisesWithFavorites,
+      data: processedExercises,
       pagination: {
         total,
         page,
@@ -118,6 +111,9 @@ export async function POST(request: NextRequest) {
       category, 
       muscleGroups, 
       equipment,
+      difficulty,
+      forceType,
+      isFavorite,
       imageUrl,
       videoUrl 
     } = body
@@ -151,6 +147,9 @@ export async function POST(request: NextRequest) {
         category: category.trim(),
         muscleGroups,
         equipment: equipment?.trim() || null,
+        difficulty: difficulty?.trim() || null,
+        forceType: forceType?.trim() || null,
+        isFavorite: Boolean(isFavorite) || false,
         imageUrl: imageUrl?.trim() || null,
         videoUrl: videoUrl?.trim() || null,
         isActive: true,

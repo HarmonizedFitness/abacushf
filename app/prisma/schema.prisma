@@ -118,6 +118,9 @@ model Exercise {
   category         String
   muscleGroups     String[]
   equipment        String?
+  difficulty       String?           // NEW: Difficulty Level (beginner, intermediate, advanced)
+  forceType        String?           // NEW: Push/Pull/Static
+  isFavorite       Boolean           @default(false) // NEW: Admin-controlled global favorite
   imageUrl         String?
   videoUrl         String?
   isActive         Boolean           @default(true)
@@ -125,7 +128,7 @@ model Exercise {
   updatedAt        DateTime          @updatedAt
   personalRecords  PersonalRecord[]
   workoutExercises WorkoutExercise[]
-  favoritedBy      User[]            @relation("ExerciseToUser")
+  favoritedBy      User[]            @relation("ExerciseToUser") // Keep for backward compatibility
 
   @@map("exercises")
 }
