@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
-import { calculatePersonalRecords, isBodyweightExercise } from '@/lib/utils'
+import { calculatePersonalRecords, isBodyweightExercise, calculatePRStatistics } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -121,6 +121,12 @@ export async function GET(request: NextRequest) {
       }
     })
 
+    // Calculate accurate statistics if requested
+    let calculatedStats = null
+    if (calculate && calculatedPRs.length > 0) {
+      calculatedStats = calculatePRStatistics(calculatedPRs)
+    }
+
     return NextResponse.json({
       success: true,
       data: enhancedRecords,
@@ -134,7 +140,9 @@ export async function GET(request: NextRequest) {
       },
       calculated: calculate ? {
         totalCalculatedPRs: calculatedPRs.length,
-        userBodyWeight
+        userBodyWeight,
+        // Add accurate statistics based on calculated PRs
+        statistics: calculatedStats
       } : null
     })
   } catch (error) {

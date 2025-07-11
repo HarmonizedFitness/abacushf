@@ -76,6 +76,7 @@ interface Exercise {
 export default function PersonalRecordsPage() {
   const [personalRecords, setPersonalRecords] = useState<PersonalRecord[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
+  const [calculatedStats, setCalculatedStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
@@ -108,6 +109,8 @@ export default function PersonalRecordsPage() {
 
       if (data.success) {
         setPersonalRecords(data.data || [])
+        // FIXED: Extract calculated statistics from the API response
+        setCalculatedStats(data.calculated?.statistics || null)
       }
     } catch (error) {
       console.error('Failed to fetch personal records:', error)
@@ -280,6 +283,17 @@ export default function PersonalRecordsPage() {
   })
 
   const getStatsData = () => {
+    // Use calculated statistics if available, otherwise fallback to stored PR data
+    if (calculatedStats) {
+      return {
+        totalPRs: calculatedStats.totalPRs,
+        thisMonth: calculatedStats.thisMonthPRs,
+        categories: calculatedStats.categoriesCount,
+        totalVolume: calculatedStats.totalLifetimeVolume
+      }
+    }
+    
+    // Fallback to stored PR data calculations
     const totalPRs = personalRecords.length
     const thisMonth = personalRecords.filter(pr => {
       const prDate = new Date(pr.achievedAt)
@@ -290,9 +304,20 @@ export default function PersonalRecordsPage() {
     
     const categories = [...new Set(personalRecords.map(pr => pr.exercise?.category))].length
     
-    const totalVolume = personalRecords.reduce((sum, pr) => {
-      return sum + (Number(pr.volume) || 0)
-    }, 0)
+    // FIXED: Better total volume calculation using calculated PRs if available
+    let totalVolume = 0
+    if (personalRecords.some(pr => pr.calculated?.maxVolume)) {
+      // Sum volumes from calculated PRs
+      totalVolume = personalRecords.reduce((sum, pr) => {
+        const calculatedVolume = pr.calculated?.maxVolume?.volume || 0
+        return sum + calculatedVolume
+      }, 0)
+    } else {
+      // Fallback to stored volume data
+      totalVolume = personalRecords.reduce((sum, pr) => {
+        return sum + (Number(pr.volume) || 0)
+      }, 0)
+    }
 
     return { totalPRs, thisMonth, categories, totalVolume }
   }
@@ -465,7 +490,19 @@ export default function PersonalRecordsPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-hf-text">
-                {Math.round(stats.totalVolume / 1000)}k
+                {(() => {
+                  const volume = stats.totalVolume || 0
+                  // FIXED: Proper number formatting for large volumes
+                  if (volume >= 1000000) {
+                    return `${(volume / 1000000).toFixed(1)}M`
+                  } else if (volume >= 1000) {
+                    return `${(volume / 1000).toFixed(1)}k`
+                  } else if (volume > 0) {
+                    return volume.toLocaleString()
+                  } else {
+                    return '0'
+                  }
+                })()}
                 <span className="text-sm text-hf-text-secondary ml-1">lbs</span>
               </div>
               <p className="text-xs text-hf-text-secondary">Lifetime volume</p>

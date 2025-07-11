@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
 
-    // Get remaining credits
+    // Get remaining credits using the existing function
     const remainingCredits = await getUserCredits(user.id)
 
     // Get credit purchase history
@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
       take: 10,
     })
 
-    // Get credit usage history
-    const usage = await prisma.booking.findMany({
+    // Get credit usage history from bookings
+    const bookingUsage = await prisma.booking.findMany({
       where: {
         userId: user.id,
         status: {
@@ -40,21 +40,50 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // Calculate total purchased and used
+    // FIXED: Get completed workout sessions count for verification
+    const completedWorkouts = await prisma.workoutSession.findMany({
+      where: {
+        userId: user.id,
+        status: 'COMPLETED'
+      },
+      select: {
+        id: true,
+        date: true,
+        status: true,
+      },
+      orderBy: { date: 'desc' }
+    })
+
+    // Calculate totals
     const totalPurchased = purchases
       .filter(p => p.status === 'COMPLETED')
       .reduce((sum, p) => sum + p.credits, 0)
 
-    const totalUsed = usage.reduce((sum, u) => sum + u.creditsUsed, 0)
+    const totalUsedFromBookings = bookingUsage.reduce((sum, u) => sum + u.creditsUsed, 0)
+    const completedWorkoutsCount = completedWorkouts.length
+
+    // FIXED: More accurate remaining credits calculation
+    // Method 1: Based on bookings (current method)
+    const remainingCreditsFromBookings = Math.max(0, totalPurchased - totalUsedFromBookings)
+    
+    // Method 2: Based on completed workouts (alternative method)
+    const remainingCreditsFromWorkouts = Math.max(0, totalPurchased - completedWorkoutsCount)
 
     return NextResponse.json({
       success: true,
       data: {
         remainingCredits,
         totalPurchased,
-        totalUsed,
+        totalUsed: totalUsedFromBookings,
         recentPurchases: purchases,
-        recentUsage: usage,
+        recentUsage: bookingUsage,
+        // FIXED: Add completed workouts information for debugging
+        completedWorkouts: completedWorkoutsCount,
+        verification: {
+          remainingCreditsFromBookings,
+          remainingCreditsFromWorkouts,
+          discrepancy: remainingCreditsFromBookings !== remainingCreditsFromWorkouts
+        }
       },
     })
   } catch (error) {

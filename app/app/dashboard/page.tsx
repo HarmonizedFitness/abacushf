@@ -32,6 +32,13 @@ interface DashboardData {
   totalWorkouts: number
   totalPRs: number
   thisWeekExercises: number
+  // FIXED: Add credits verification data
+  creditsVerification?: {
+    remainingCreditsFromBookings: number
+    remainingCreditsFromWorkouts: number
+    completedWorkouts: number
+    discrepancy: boolean
+  }
 }
 
 export default function DashboardPage() {
@@ -77,14 +84,19 @@ export default function DashboardPage() {
         }, 0)
       }
 
+      // FIXED: Use more accurate credits calculation
+      const actualRemainingCredits = creditsData.data?.verification?.remainingCreditsFromWorkouts ?? creditsData.data?.remainingCredits ?? 0
+
       setDashboardData({
-        remainingCredits: creditsData.data?.remainingCredits || 0,
+        remainingCredits: actualRemainingCredits,
         upcomingBookings: bookingsData.data || [],
         recentWorkouts: workoutsData.data || [],
         personalRecords: recordsData.data || [],
         totalWorkouts: workoutsData.pagination?.total || 0,
         totalPRs: recordsData.pagination?.total || 0,
         thisWeekExercises,
+        // FIXED: Add credits verification data for debugging
+        creditsVerification: creditsData.data?.verification || null
       })
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
@@ -119,7 +131,11 @@ export default function DashboardPage() {
           <StatCard
             title="Remaining Credits"
             value={dashboardData?.remainingCredits || 0}
-            description="Available for booking sessions"
+            description={
+              session?.user?.role === 'ADMIN' && dashboardData?.creditsVerification?.discrepancy
+                ? `Discrepancy detected - Workouts: ${dashboardData.creditsVerification.remainingCreditsFromWorkouts}, Bookings: ${dashboardData.creditsVerification.remainingCreditsFromBookings}`
+                : "Available for booking sessions"
+            }
             icon={CreditCard}
           />
           <StatCard

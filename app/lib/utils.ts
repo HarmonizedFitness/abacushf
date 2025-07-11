@@ -479,6 +479,7 @@ export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: nu
     maxVolume: { weight: number, reps: number, volume: number, achievedAt: string, workoutSessionId: string } | null
     maxReps: { reps: number, weight: number, achievedAt: string, workoutSessionId: string } | null
     isBodyweight: boolean
+    totalLifetimeVolume: number
   }> = {}
 
   workoutSets.forEach((set: any) => {
@@ -501,7 +502,8 @@ export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: nu
         maxWeight: null,
         maxVolume: null,
         maxReps: null,
-        isBodyweight
+        isBodyweight,
+        totalLifetimeVolume: 0
       }
     }
 
@@ -524,6 +526,8 @@ export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: nu
       // If additional weight is used (weighted bodyweight exercise)
       if (setWeight > 0) {
         const totalWeight = (userBodyWeight || 0) + setWeight
+        
+        // FIXED: Weight PR = Single heaviest weight moved (regardless of reps)
         if (!prsByExercise[exerciseId].maxWeight || totalWeight > prsByExercise[exerciseId].maxWeight!.weight) {
           prsByExercise[exerciseId].maxWeight = {
             weight: totalWeight,
@@ -533,20 +537,32 @@ export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: nu
           }
         }
         
-        const volume = totalWeight * reps
-        if (!prsByExercise[exerciseId].maxVolume || volume > prsByExercise[exerciseId].maxVolume!.volume) {
+        // FIXED: Volume PR = Highest single set volume (weight × reps for ONE set)
+        const singleSetVolume = totalWeight * reps
+        if (!prsByExercise[exerciseId].maxVolume || singleSetVolume > prsByExercise[exerciseId].maxVolume!.volume) {
           prsByExercise[exerciseId].maxVolume = {
             weight: totalWeight,
             reps,
-            volume,
+            volume: singleSetVolume,
             achievedAt,
             workoutSessionId
           }
+        }
+
+        // Track total lifetime volume
+        prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
+      } else {
+        // For pure bodyweight, use bodyweight as weight if available
+        const effectiveWeight = userBodyWeight || 0
+        if (effectiveWeight > 0) {
+          const singleSetVolume = effectiveWeight * reps
+          prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
         }
       }
     } else {
       // For weighted exercises, track max weight and volume
       if (setWeight > 0) {
+        // FIXED: Weight PR = Single heaviest weight moved (regardless of reps)
         if (!prsByExercise[exerciseId].maxWeight || setWeight > prsByExercise[exerciseId].maxWeight!.weight) {
           prsByExercise[exerciseId].maxWeight = {
             weight: setWeight,
@@ -556,16 +572,20 @@ export function calculatePersonalRecords(workoutSets: any[], userBodyWeight?: nu
           }
         }
 
-        const volume = setWeight * reps
-        if (!prsByExercise[exerciseId].maxVolume || volume > prsByExercise[exerciseId].maxVolume!.volume) {
+        // FIXED: Volume PR = Highest single set volume (weight × reps for ONE set)
+        const singleSetVolume = setWeight * reps
+        if (!prsByExercise[exerciseId].maxVolume || singleSetVolume > prsByExercise[exerciseId].maxVolume!.volume) {
           prsByExercise[exerciseId].maxVolume = {
             weight: setWeight,
             reps,
-            volume,
+            volume: singleSetVolume,
             achievedAt,
             workoutSessionId
           }
         }
+
+        // Track total lifetime volume
+        prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
       }
     }
   })
@@ -648,4 +668,62 @@ export function isBodyweightExercise(exercise: any): boolean {
          name.includes('chin-up') ||
          name.includes('dip') ||
          name.includes('plank')
+}
+
+// Calculate accurate PR statistics from calculated PRs
+export function calculatePRStatistics(calculatedPRs: any[]): {
+  totalPRs: number
+  totalLifetimeVolume: number
+  categoriesCount: number
+  thisMonthPRs: number
+} {
+  const totalPRs = calculatedPRs.length
+  
+  // Calculate total lifetime volume from all exercises
+  const totalLifetimeVolume = calculatedPRs.reduce((sum, pr) => {
+    return sum + (pr.totalLifetimeVolume || 0)
+  }, 0)
+  
+  // Count unique categories
+  const categories = new Set(calculatedPRs.map(pr => pr.category))
+  const categoriesCount = categories.size
+  
+  // Count PRs from this month (based on maxWeight or maxVolume achievedAt)
+  const oneMonthAgo = new Date()
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
+  
+  const thisMonthPRs = calculatedPRs.filter(pr => {
+    const maxWeightDate = pr.maxWeight ? new Date(pr.maxWeight.achievedAt) : null
+    const maxVolumeDate = pr.maxVolume ? new Date(pr.maxVolume.achievedAt) : null
+    
+    const latestPRDate = maxWeightDate && maxVolumeDate 
+      ? new Date(Math.max(maxWeightDate.getTime(), maxVolumeDate.getTime()))
+      : maxWeightDate || maxVolumeDate
+      
+    return latestPRDate && latestPRDate >= oneMonthAgo
+  }).length
+  
+  return {
+    totalPRs,
+    totalLifetimeVolume,
+    categoriesCount,
+    thisMonthPRs
+  }
+}
+
+// Calculate accurate credits considering completed workouts
+export async function calculateAccurateCredits(userId: string): Promise<{
+  remainingCredits: number
+  totalPurchased: number
+  totalUsed: number
+  completedWorkouts: number
+}> {
+  // This function would need to be called from API routes where prisma is available
+  // Adding it here as a utility structure for use in API routes
+  return {
+    remainingCredits: 0,
+    totalPurchased: 0, 
+    totalUsed: 0,
+    completedWorkouts: 0
+  }
 }
