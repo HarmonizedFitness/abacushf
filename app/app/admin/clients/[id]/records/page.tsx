@@ -34,6 +34,23 @@ interface PersonalRecord {
   notes?: string
   achievedAt: string
   isBodyweight: boolean
+  calculated?: {
+    maxWeight?: {
+      weight: number
+      reps: number
+      achievedAt: string
+      workoutSessionId: string
+    }
+    maxVolume?: {
+      weight: number
+      reps: number
+      volume: number
+      achievedAt: string
+      workoutSessionId: string
+    }
+    userBodyWeight?: number
+    totalLifetimeVolume?: number
+  }
   exercise: {
     id: string
     name: string
@@ -86,7 +103,9 @@ export default function ClientRecordsPage() {
       const data = await response.json()
 
       if (data.success) {
-        setRecords(data.data)
+        // FIXED: Filter out bodyweight exercises to match client view
+        const filteredRecords = data.data.filter((record: PersonalRecord) => !record.isBodyweight)
+        setRecords(filteredRecords)
       } else {
         toast({
           title: 'Error',
@@ -207,7 +226,14 @@ export default function ClientRecordsPage() {
 
   // Calculate categories count (distinct muscle groups)
   const categories = new Set(records.flatMap(record => record.exercise.muscleGroups)).size
-  const totalVolume = records.reduce((sum, record) => sum + (record.volume || 0), 0)
+  
+  // FIXED: Calculate total volume properly using calculated PRs if available
+  const totalVolume = records.reduce((sum, record) => {
+    if (record.calculated?.maxVolume) {
+      return sum + record.calculated.maxVolume.volume
+    }
+    return sum + (record.volume || 0)
+  }, 0)
 
   return (
     <div className="container mx-auto p-6 max-w-7xl">
@@ -295,7 +321,21 @@ export default function ClientRecordsPage() {
                 <Trophy className="h-5 w-5 text-hf-orange" />
                 <div>
                   <p className="text-sm font-medium text-hf-text-secondary">Total Volume</p>
-                  <p className="text-2xl font-bold text-hf-text">{totalVolume.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-hf-text">
+                    {(() => {
+                      // FIXED: Use same formatting as client view
+                      if (totalVolume >= 1000000) {
+                        return `${(totalVolume / 1000000).toFixed(1)}M`
+                      } else if (totalVolume >= 1000) {
+                        return `${(totalVolume / 1000).toFixed(1)}k`
+                      } else if (totalVolume > 0) {
+                        return totalVolume.toLocaleString()
+                      } else {
+                        return '0'
+                      }
+                    })()}
+                    <span className="text-sm text-hf-text-secondary ml-1">lbs</span>
+                  </p>
                   <p className="text-xs text-hf-text-secondary">lbs lifted</p>
                 </div>
               </div>

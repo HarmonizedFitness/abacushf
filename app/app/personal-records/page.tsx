@@ -288,7 +288,11 @@ export default function PersonalRecordsPage() {
   const filteredRecords = personalRecords.filter((record) => {
     const matchesSearch = record.exercise?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                          record.notes?.toLowerCase().includes(searchQuery.toLowerCase())
-    return matchesSearch
+    
+    // FIXED: Apply category filter properly
+    const matchesCategory = categoryFilter === 'all' || record.exercise?.category === categoryFilter
+    
+    return matchesSearch && matchesCategory
   })
 
   const getStatsData = () => {

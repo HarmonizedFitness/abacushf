@@ -52,7 +52,7 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Client not found' }, { status: 404 })
     }
 
-    // Get remaining credits
+    // FIXED: Get remaining credits using same calculation as client view (workout-based)
     const totalPurchased = await prisma.creditPurchase.aggregate({
       where: {
         userId: client.id,
@@ -63,21 +63,15 @@ export async function GET(
       },
     })
 
-    const totalUsed = await prisma.booking.aggregate({
+    const completedWorkouts = await prisma.workoutSession.count({
       where: {
         userId: client.id,
-        status: {
-          in: ['CONFIRMED', 'COMPLETED'],
-        },
-      },
-      _sum: {
-        creditsUsed: true,
-      },
+        status: 'COMPLETED'
+      }
     })
 
     const purchased = totalPurchased._sum.credits || 0
-    const used = totalUsed._sum.creditsUsed || 0
-    const remainingCredits = Math.max(0, purchased - used)
+    const remainingCredits = Math.max(0, purchased - completedWorkouts)
 
     return NextResponse.json({
       success: true,
@@ -149,7 +143,7 @@ export async function PATCH(
       },
     })
 
-    // Get remaining credits
+    // FIXED: Get remaining credits using same calculation as client view (workout-based)
     const totalPurchased = await prisma.creditPurchase.aggregate({
       where: {
         userId: updatedClient.id,
@@ -160,21 +154,15 @@ export async function PATCH(
       },
     })
 
-    const totalUsed = await prisma.booking.aggregate({
+    const completedWorkouts = await prisma.workoutSession.count({
       where: {
         userId: updatedClient.id,
-        status: {
-          in: ['CONFIRMED', 'COMPLETED'],
-        },
-      },
-      _sum: {
-        creditsUsed: true,
-      },
+        status: 'COMPLETED'
+      }
     })
 
     const purchased = totalPurchased._sum.credits || 0
-    const used = totalUsed._sum.creditsUsed || 0
-    const remainingCredits = Math.max(0, purchased - used)
+    const remainingCredits = Math.max(0, purchased - completedWorkouts)
 
     return NextResponse.json({
       success: true,

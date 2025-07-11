@@ -82,7 +82,12 @@ export default function AdminClientDashboardPage() {
         let thisWeekExercises = 0
         if (weekWorkoutsData.success && weekWorkoutsData.data) {
           thisWeekExercises = weekWorkoutsData.data.reduce((total: number, workout: any) => {
-            return total + (workout.exercises?.length || 0)
+            // FIXED: Count both individual exercises and exercises within groups
+            const individualExercises = workout.exercises?.length || 0
+            const groupExercises = workout.groups?.reduce((groupTotal: number, group: any) => {
+              return groupTotal + (group.exercises?.length || 0)
+            }, 0) || 0
+            return total + individualExercises + groupExercises
           }, 0)
         }
 
