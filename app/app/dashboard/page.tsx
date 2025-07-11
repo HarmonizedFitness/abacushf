@@ -84,8 +84,8 @@ export default function DashboardPage() {
         }, 0)
       }
 
-      // FIXED: Use more accurate credits calculation
-      const actualRemainingCredits = creditsData.data?.verification?.remainingCreditsFromWorkouts ?? creditsData.data?.remainingCredits ?? 0
+      // FIXED: Use the corrected credits calculation (workouts-based)
+      const actualRemainingCredits = creditsData.data?.remainingCredits ?? 0
 
       setDashboardData({
         remainingCredits: actualRemainingCredits,

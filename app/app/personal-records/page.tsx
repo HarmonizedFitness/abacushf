@@ -55,6 +55,7 @@ interface PersonalRecord {
       workoutSessionId: string
     }
     userBodyWeight?: number
+    totalLifetimeVolume?: number
   }
   exercise: {
     id: string
@@ -223,11 +224,15 @@ export default function PersonalRecordsPage() {
       render: (weight, record) => (
         <div className="text-center">
           <span className="text-lg font-bold text-hf-orange">
-            {formatPRDisplay({ weight, reps: record.reps }, record.isBodyweight)}
+            {/* FIXED: Use calculated weight PR if available, otherwise fallback to stored */}
+            {record.calculated?.maxWeight ? 
+              `${record.calculated.maxWeight.weight} lbs` : 
+              formatPRDisplay({ weight, reps: record.reps }, record.isBodyweight)
+            }
           </span>
           {record.calculated?.maxWeight && (
             <p className="text-xs text-hf-text-secondary">
-              Max: {formatPRDisplay(record.calculated.maxWeight, record.isBodyweight)}
+              {record.calculated.maxWeight.reps} reps
             </p>
           )}
         </div>
@@ -240,11 +245,15 @@ export default function PersonalRecordsPage() {
       render: (volume, record) => (
         <div className="text-center">
           <span className="font-medium text-hf-text">
-            {formatVolumeDisplay(Number(volume) || 0, record.isBodyweight)}
+            {/* FIXED: Use calculated volume PR if available, otherwise fallback to stored */}
+            {record.calculated?.maxVolume ? 
+              `${record.calculated.maxVolume.volume.toLocaleString()} lbs` : 
+              formatVolumeDisplay(Number(volume) || 0, record.isBodyweight)
+            }
           </span>
           {record.calculated?.maxVolume && (
             <p className="text-xs text-hf-text-secondary">
-              Max: {formatVolumeDisplay(record.calculated.maxVolume.volume, record.isBodyweight)}
+              {record.calculated.maxVolume.weight} lbs × {record.calculated.maxVolume.reps} reps
             </p>
           )}
         </div>
@@ -304,13 +313,14 @@ export default function PersonalRecordsPage() {
     
     const categories = [...new Set(personalRecords.map(pr => pr.exercise?.category))].length
     
-    // FIXED: Better total volume calculation using calculated PRs if available
+    // FIXED: Use calculated statistics total lifetime volume if available
     let totalVolume = 0
-    if (personalRecords.some(pr => pr.calculated?.maxVolume)) {
-      // Sum volumes from calculated PRs
+    if (calculatedStats?.totalLifetimeVolume) {
+      totalVolume = calculatedStats.totalLifetimeVolume
+    } else if (personalRecords.some(pr => pr.calculated?.totalLifetimeVolume)) {
+      // Sum total lifetime volumes from calculated PRs
       totalVolume = personalRecords.reduce((sum, pr) => {
-        const calculatedVolume = pr.calculated?.maxVolume?.volume || 0
-        return sum + calculatedVolume
+        return sum + (pr.calculated?.totalLifetimeVolume || 0)
       }, 0)
     } else {
       // Fallback to stored volume data

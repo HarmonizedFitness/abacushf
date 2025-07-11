@@ -105,21 +105,56 @@ export async function GET(request: NextRequest) {
       calculatedPRs = calculatePersonalRecords(workoutSets, userBodyWeight)
     }
 
-    // Enhance personal records with calculated data and bodyweight info
-    const enhancedRecords = personalRecords.map(record => {
-      const isBodyweight = isBodyweightExercise(record.exercise)
-      const calculatedPR = calculatedPRs.find(pr => pr.exerciseId === record.exerciseId)
-      
-      return {
-        ...record,
-        isBodyweight,
-        calculated: calculatedPR ? {
-          maxWeight: calculatedPR.maxWeight,
-          maxVolume: calculatedPR.maxVolume,
-          userBodyWeight
-        } : null
-      }
-    })
+    // FIXED: Use calculated PRs as primary data, filter out bodyweight exercises
+    let finalRecords = []
+    
+    if (calculate && calculatedPRs.length > 0) {
+      // Use calculated PRs as primary data source
+      finalRecords = calculatedPRs
+        .filter(pr => !pr.isBodyweight) // Filter out bodyweight exercises
+        .map(pr => {
+          // Find corresponding stored record for additional data
+          const storedRecord = personalRecords.find(stored => stored.exerciseId === pr.exerciseId)
+          
+          return {
+            id: storedRecord?.id || pr.exerciseId,
+            exerciseId: pr.exerciseId,
+            // FIXED: Use calculated weight PR instead of stored weight
+            weight: pr.maxWeight?.weight || null,
+            reps: pr.maxWeight?.reps || null,
+            // FIXED: Use calculated volume PR instead of stored volume  
+            volume: pr.maxVolume?.volume || null,
+            duration: storedRecord?.duration || null,
+            notes: storedRecord?.notes || null,
+            achievedAt: pr.maxWeight?.achievedAt || pr.maxVolume?.achievedAt || storedRecord?.achievedAt || new Date().toISOString(),
+            exercise: {
+              id: pr.exerciseId,
+              name: pr.exerciseName,
+              category: pr.category,
+              muscleGroups: storedRecord?.exercise?.muscleGroups || [],
+              equipment: storedRecord?.exercise?.equipment || null,
+              imageUrl: storedRecord?.exercise?.imageUrl || null,
+            },
+            isBodyweight: pr.isBodyweight,
+            calculated: {
+              maxWeight: pr.maxWeight,
+              maxVolume: pr.maxVolume,
+              userBodyWeight,
+              totalLifetimeVolume: pr.totalLifetimeVolume
+            }
+          }
+        })
+    } else {
+      // Fallback to stored records if calculation is disabled
+      finalRecords = personalRecords.map(record => {
+        const isBodyweight = isBodyweightExercise(record.exercise)
+        return {
+          ...record,
+          isBodyweight,
+          calculated: null
+        }
+      }).filter(record => !record.isBodyweight) // Filter out bodyweight exercises
+    }
 
     // Calculate accurate statistics if requested
     let calculatedStats = null
@@ -129,17 +164,17 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: enhancedRecords,
+      data: finalRecords,
       pagination: {
-        total,
+        total: finalRecords.length,
         page,
         limit,
-        totalPages: Math.ceil(total / limit),
-        hasNext: page * limit < total,
+        totalPages: Math.ceil(finalRecords.length / limit),
+        hasNext: page * limit < finalRecords.length,
         hasPrev: page > 1,
       },
       calculated: calculate ? {
-        totalCalculatedPRs: calculatedPRs.length,
+        totalCalculatedPRs: calculatedPRs.filter(pr => !pr.isBodyweight).length,
         userBodyWeight,
         // Add accurate statistics based on calculated PRs
         statistics: calculatedStats

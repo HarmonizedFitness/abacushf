@@ -10,11 +10,36 @@ export async function GET(request: NextRequest) {
   try {
     const user = await requireAuth()
 
-    // Get remaining credits using the existing function
-    const remainingCredits = await getUserCredits(user.id)
-
-    // Get credit purchase history
+    // FIXED: Calculate credits based on completed workouts instead of bookings
+    // Get credit purchases
     const purchases = await prisma.creditPurchase.findMany({
+      where: { userId: user.id, status: 'COMPLETED' }
+    })
+    const totalPurchased = purchases.reduce((sum, p) => sum + p.credits, 0)
+
+    // Get completed workout sessions count
+    const completedWorkouts = await prisma.workoutSession.findMany({
+      where: {
+        userId: user.id,
+        status: 'COMPLETED'
+      },
+      select: {
+        id: true,
+        date: true,
+        status: true,
+      },
+      orderBy: { date: 'desc' }
+    })
+    const completedWorkoutsCount = completedWorkouts.length
+
+    // FIXED: Calculate remaining credits = total purchased - completed workouts
+    const remainingCredits = Math.max(0, totalPurchased - completedWorkoutsCount)
+
+    // Get remaining credits using the existing function for comparison
+    const legacyRemainingCredits = await getUserCredits(user.id)
+
+    // Get recent purchase history
+    const recentPurchases = await prisma.creditPurchase.findMany({
       where: { userId: user.id },
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -40,49 +65,23 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    // FIXED: Get completed workout sessions count for verification
-    const completedWorkouts = await prisma.workoutSession.findMany({
-      where: {
-        userId: user.id,
-        status: 'COMPLETED'
-      },
-      select: {
-        id: true,
-        date: true,
-        status: true,
-      },
-      orderBy: { date: 'desc' }
-    })
-
-    // Calculate totals
-    const totalPurchased = purchases
-      .filter(p => p.status === 'COMPLETED')
-      .reduce((sum, p) => sum + p.credits, 0)
-
     const totalUsedFromBookings = bookingUsage.reduce((sum, u) => sum + u.creditsUsed, 0)
-    const completedWorkoutsCount = completedWorkouts.length
 
-    // FIXED: More accurate remaining credits calculation
-    // Method 1: Based on bookings (current method)
-    const remainingCreditsFromBookings = Math.max(0, totalPurchased - totalUsedFromBookings)
-    
-    // Method 2: Based on completed workouts (alternative method)
-    const remainingCreditsFromWorkouts = Math.max(0, totalPurchased - completedWorkoutsCount)
-
+    // FIXED: Use completed workouts as primary method for remaining credits
     return NextResponse.json({
       success: true,
       data: {
-        remainingCredits,
+        remainingCredits, // FIXED: Using workouts-based calculation
         totalPurchased,
-        totalUsed: totalUsedFromBookings,
-        recentPurchases: purchases,
+        totalUsed: completedWorkoutsCount, // FIXED: Show completed workouts as "used"
+        recentPurchases,
         recentUsage: bookingUsage,
-        // FIXED: Add completed workouts information for debugging
         completedWorkouts: completedWorkoutsCount,
         verification: {
-          remainingCreditsFromBookings,
-          remainingCreditsFromWorkouts,
-          discrepancy: remainingCreditsFromBookings !== remainingCreditsFromWorkouts
+          remainingCreditsFromBookings: Math.max(0, totalPurchased - totalUsedFromBookings),
+          remainingCreditsFromWorkouts: remainingCredits,
+          legacyRemainingCredits,
+          discrepancy: Math.abs(remainingCredits - legacyRemainingCredits) > 0
         }
       },
     })
