@@ -10,7 +10,6 @@ import {
   CheckCircle,
   Star,
   ArrowRight,
-  Play,
   Target,
   BarChart3,
   Clock
@@ -63,10 +62,6 @@ export default function HomePage() {
                   Start Your Journey
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-4 border-hf-orange text-hf-orange hover:bg-hf-orange hover:text-white">
-                <Play className="mr-2 h-5 w-5" />
-                Watch Demo
               </Button>
             </div>
           </div>
