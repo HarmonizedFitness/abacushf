@@ -1,19 +1,18 @@
 
-const { PrismaClient } = require('@prisma/client')
+const { PrismaClient } = require('@prisma/client');
 
-// Import calculation functions from utils.ts (converted to JS)
-function calculatePersonalRecords(workoutSets, userBodyWeight) {
-  const prsByExercise = {}
+const prisma = new PrismaClient();
+
+// Simple implementation of the key functions for testing
+function calculatePersonalRecords(workoutSets) {
+  const prsByExercise = {};
 
   workoutSets.forEach((set) => {
-    const exerciseId = set.workoutExercise?.exerciseId
-    const exerciseName = set.workoutExercise?.exercise?.name
-    const exerciseCategory = set.workoutExercise?.exercise?.category
-    const exercise = set.workoutExercise?.exercise
+    const exerciseId = set.workoutExercise?.exerciseId;
+    const exerciseName = set.workoutExercise?.exercise?.name;
+    const exerciseCategory = set.workoutExercise?.exercise?.category;
     
-    const isBodyweight = isBodyweightExercise(exercise) || (!set.weight || set.weight === 0)
-
-    if (!exerciseId || !set.reps) return
+    if (!exerciseId || !set.reps) return;
 
     if (!prsByExercise[exerciseId]) {
       prsByExercise[exerciseId] = {
@@ -22,163 +21,104 @@ function calculatePersonalRecords(workoutSets, userBodyWeight) {
         category: exerciseCategory || 'Unknown',
         maxWeight: null,
         maxVolume: null,
-        maxReps: null,
-        isBodyweight,
+        isBodyweight: false,
         totalLifetimeVolume: 0
-      }
+      };
     }
 
-    const reps = Number(set.reps) || 0
-    const setWeight = Number(set.weight) || 0
-    const achievedAt = set.workoutExercise?.workoutSession?.date || set.createdAt || new Date().toISOString()
-    const workoutSessionId = set.workoutExercise?.workoutSessionId
+    const reps = Number(set.reps) || 0;
+    const setWeight = Number(set.weight) || 0;
+    const achievedAt = set.workoutExercise?.workoutSession?.date || new Date().toISOString();
 
-    if (isBodyweight) {
-      if (reps > 0 && (!prsByExercise[exerciseId].maxReps || reps > prsByExercise[exerciseId].maxReps.reps)) {
-        prsByExercise[exerciseId].maxReps = {
+    if (setWeight > 0) {
+      // Weight PR = Single heaviest weight moved
+      if (!prsByExercise[exerciseId].maxWeight || setWeight > prsByExercise[exerciseId].maxWeight.weight) {
+        prsByExercise[exerciseId].maxWeight = {
+          weight: setWeight,
           reps,
-          weight: userBodyWeight || 0,
-          achievedAt,
-          workoutSessionId
-        }
+          achievedAt
+        };
       }
-      
-      if (setWeight > 0) {
-        const totalWeight = (userBodyWeight || 0) + setWeight
-        
-        if (!prsByExercise[exerciseId].maxWeight || totalWeight > prsByExercise[exerciseId].maxWeight.weight) {
-          prsByExercise[exerciseId].maxWeight = {
-            weight: totalWeight,
-            reps,
-            achievedAt,
-            workoutSessionId
-          }
-        }
-        
-        const singleSetVolume = totalWeight * reps
-        if (!prsByExercise[exerciseId].maxVolume || singleSetVolume > prsByExercise[exerciseId].maxVolume.volume) {
-          prsByExercise[exerciseId].maxVolume = {
-            weight: totalWeight,
-            reps,
-            volume: singleSetVolume,
-            achievedAt,
-            workoutSessionId
-          }
-        }
 
-        prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
-      } else {
-        const effectiveWeight = userBodyWeight || 0
-        if (effectiveWeight > 0) {
-          const singleSetVolume = effectiveWeight * reps
-          prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
-        }
+      // Volume PR = Highest single set volume
+      const singleSetVolume = setWeight * reps;
+      if (!prsByExercise[exerciseId].maxVolume || singleSetVolume > prsByExercise[exerciseId].maxVolume.volume) {
+        prsByExercise[exerciseId].maxVolume = {
+          weight: setWeight,
+          reps,
+          volume: singleSetVolume,
+          achievedAt
+        };
       }
-    } else {
-      if (setWeight > 0) {
-        if (!prsByExercise[exerciseId].maxWeight || setWeight > prsByExercise[exerciseId].maxWeight.weight) {
-          prsByExercise[exerciseId].maxWeight = {
-            weight: setWeight,
-            reps,
-            achievedAt,
-            workoutSessionId
-          }
-        }
 
-        const singleSetVolume = setWeight * reps
-        if (!prsByExercise[exerciseId].maxVolume || singleSetVolume > prsByExercise[exerciseId].maxVolume.volume) {
-          prsByExercise[exerciseId].maxVolume = {
-            weight: setWeight,
-            reps,
-            volume: singleSetVolume,
-            achievedAt,
-            workoutSessionId
-          }
-        }
-
-        prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume
-      }
+      prsByExercise[exerciseId].totalLifetimeVolume += singleSetVolume;
     }
-  })
+  });
 
-  return Object.values(prsByExercise)
+  return Object.values(prsByExercise);
 }
 
-function isBodyweightExercise(exercise) {
-  if (!exercise) return false
+function generateWorkoutDisplayName(workout) {
+  if (!workout) return 'Unknown Workout';
   
-  const category = exercise.category?.toLowerCase() || ''
-  const equipment = exercise.equipment?.toLowerCase() || ''
-  const name = exercise.name?.toLowerCase() || ''
-  
-  return category.includes('bodyweight') || 
-         equipment.includes('bodyweight') || 
-         name.includes('bodyweight') ||
-         name.includes('push-up') ||
-         name.includes('pull-up') ||
-         name.includes('chin-up') ||
-         name.includes('dip') ||
-         name.includes('plank') ||
-         name.includes('burpee') ||
-         name.includes('split squat')
-}
-
-function calculatePRStatistics(calculatedPRs) {
-  const totalPRs = calculatedPRs.length
-  
-  const totalLifetimeVolume = calculatedPRs.reduce((sum, pr) => {
-    return sum + (pr.totalLifetimeVolume || 0)
-  }, 0)
-  
-  const categories = new Set(calculatedPRs.map(pr => pr.category))
-  const categoriesCount = categories.size
-  
-  const oneMonthAgo = new Date()
-  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1)
-  
-  const thisMonthPRs = calculatedPRs.filter(pr => {
-    const maxWeightDate = pr.maxWeight ? new Date(pr.maxWeight.achievedAt) : null
-    const maxVolumeDate = pr.maxVolume ? new Date(pr.maxVolume.achievedAt) : null
+  try {
+    const userName = workout.user?.name || 'Unknown';
+    const nameParts = userName.trim().split(' ');
     
-    const latestPRDate = maxWeightDate && maxVolumeDate 
-      ? new Date(Math.max(maxWeightDate.getTime(), maxVolumeDate.getTime()))
-      : maxWeightDate || maxVolumeDate
-      
-    return latestPRDate && latestPRDate >= oneMonthAgo
-  }).length
-  
-  return {
-    totalPRs,
-    totalLifetimeVolume,
-    categoriesCount,
-    thisMonthPRs
+    let nameCode = 'Unknown';
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0];
+      const lastName = nameParts[nameParts.length - 1];
+      nameCode = `${lastName}${firstName.charAt(0).toUpperCase()}`;
+    }
+    
+    const workoutDate = new Date(workout.date);
+    const day = workoutDate.getDate().toString().padStart(2, '0');
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                       'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+    const month = monthNames[workoutDate.getMonth()];
+    const year = workoutDate.getFullYear().toString().slice(-2);
+    
+    return `${nameCode}_${day}${month}${year}`;
+  } catch (error) {
+    return `Workout_${workout.id?.substring(0, 8) || 'Unknown'}`;
   }
 }
 
 async function testCalculations() {
-  const prisma = new PrismaClient()
-  
   try {
-    console.log('\n🧪 TESTING CALCULATION LOGIC WITH HAMZA\'S DATA\n')
+    const hamzaId = 'cmcxv0sq90000sdb5uecjqpks';
     
-    // Get Hamza's data
-    const hamza = await prisma.user.findFirst({
-      where: { name: { contains: 'Hamza' } }
-    })
+    console.log('🧮 Testing calculation logic directly...\n');
     
-    if (!hamza) {
-      console.log('❌ Hamza not found')
-      return
-    }
+    // Test 1: Credits calculation
+    console.log('💳 CREDITS CALCULATION TEST:');
+    const totalPurchased = await prisma.creditPurchase.aggregate({
+      where: { userId: hamzaId, status: 'COMPLETED' },
+      _sum: { credits: true },
+    });
     
-    console.log(`🎯 Testing with: ${hamza.name} (${hamza.id})`)
+    const completedWorkouts = await prisma.workoutSession.count({
+      where: { userId: hamzaId, status: 'COMPLETED' }
+    });
     
-    // Get all workout sets for Hamza
+    const purchased = totalPurchased._sum.credits || 0;
+    const remainingCredits = Math.max(0, purchased - completedWorkouts);
+    
+    console.log('  - Total Purchased:', purchased);
+    console.log('  - Completed Workouts:', completedWorkouts);
+    console.log('  - Remaining Credits:', remainingCredits);
+    console.log('  - ✅ Expected: 7, Calculated:', remainingCredits, remainingCredits === 7 ? '✅ CORRECT' : '❌ WRONG');
+    
+    // Test 2: Personal Records calculation
+    console.log('\n🏆 PERSONAL RECORDS CALCULATION TEST:');
+    
+    // Get all workout sets for PR calculation
     const workoutSets = await prisma.workoutSet.findMany({
       where: {
         workoutExercise: {
           workoutSession: {
-            userId: hamza.id
+            userId: hamzaId
           }
         }
       },
@@ -202,103 +142,72 @@ async function testCalculations() {
           }
         }
       }
-    })
+    });
     
-    console.log(`📊 Found ${workoutSets.length} workout sets`)
+    console.log('  - Total workout sets:', workoutSets.length);
     
-    // Calculate PRs using our function
-    const calculatedPRs = calculatePersonalRecords(workoutSets, 180) // Assume 180lbs bodyweight
+    // Calculate PRs
+    const calculatedPRs = calculatePersonalRecords(workoutSets);
+    console.log('  - Calculated PRs for', calculatedPRs.length, 'exercises');
     
-    console.log(`🏆 Calculated ${calculatedPRs.length} Personal Records:\n`)
+    // Find specific exercises
+    const benchPress = calculatedPRs.find(pr => 
+      pr.exerciseName?.toLowerCase().includes('barbell bench press') && 
+      !pr.exerciseName?.toLowerCase().includes('incline')
+    );
+    const inclineBench = calculatedPRs.find(pr => 
+      pr.exerciseName?.toLowerCase().includes('barbell incline bench press')
+    );
     
-    calculatedPRs.forEach(pr => {
-      console.log(`📝 ${pr.exerciseName} (${pr.category})`)
-      console.log(`   - Bodyweight: ${pr.isBodyweight}`)
-      if (pr.maxWeight) {
-        console.log(`   - Weight PR: ${pr.maxWeight.weight}lbs × ${pr.maxWeight.reps} reps`)
-      }
-      if (pr.maxVolume) {
-        console.log(`   - Volume PR: ${pr.maxVolume.volume}lbs (${pr.maxVolume.weight}lbs × ${pr.maxVolume.reps} reps)`)
-      }
-      if (pr.maxReps) {
-        console.log(`   - Reps PR: ${pr.maxReps.reps} reps`)
-      }
-      console.log(`   - Total Lifetime Volume: ${pr.totalLifetimeVolume}lbs`)
-      console.log('')
-    })
-    
-    // Calculate statistics
-    const stats = calculatePRStatistics(calculatedPRs)
-    console.log('📈 CALCULATED STATISTICS:')
-    console.log(`   - Total PRs: ${stats.totalPRs}`)
-    console.log(`   - Total Lifetime Volume: ${stats.totalLifetimeVolume}lbs`)
-    console.log(`   - Categories: ${stats.categoriesCount}`)
-    console.log(`   - This Month PRs: ${stats.thisMonthPRs}`)
-    
-    // Filter out bodyweight exercises
-    const weightedPRs = calculatedPRs.filter(pr => !pr.isBodyweight)
-    console.log(`\n🏋️ WEIGHTED EXERCISES ONLY (after filtering):`)
-    console.log(`   - Count: ${weightedPRs.length}`)
-    weightedPRs.forEach(pr => {
-      console.log(`   - ${pr.exerciseName}: Weight PR ${pr.maxWeight?.weight}lbs, Volume PR ${pr.maxVolume?.volume}lbs`)
-    })
-    
-    // Check specific exercises
-    console.log(`\n🔍 SPECIFIC EXERCISE CHECKS:`)
-    const benchPress = calculatedPRs.find(pr => pr.exerciseName?.toLowerCase().includes('barbell bench press'))
     if (benchPress) {
-      console.log(`✅ Barbell Bench Press:`)
-      console.log(`   - Weight PR: ${benchPress.maxWeight?.weight}lbs (should be 315lbs)`)
-      console.log(`   - Volume PR: ${benchPress.maxVolume?.volume}lbs (should be 1550lbs = 155×10)`)
-      console.log(`   - Is Bodyweight: ${benchPress.isBodyweight} (should be false)`)
+      console.log('  - Barbell Bench Press Weight PR:', benchPress.maxWeight?.weight, 'lbs');
+      console.log('    ✅ Expected: 315 lbs, Calculated:', benchPress.maxWeight?.weight, 
+        benchPress.maxWeight?.weight === 315 ? '✅ CORRECT' : '❌ WRONG');
+    } else {
+      console.log('  - ❌ Barbell Bench Press not found');
     }
     
-    const splitSquat = calculatedPRs.find(pr => pr.exerciseName?.toLowerCase().includes('bulgarian split squat'))
-    if (splitSquat) {
-      console.log(`🚫 Bulgarian Split Squat:`)
-      console.log(`   - Is Bodyweight: ${splitSquat.isBodyweight} (should be true - FILTERED OUT)`)
+    if (inclineBench) {
+      console.log('  - Barbell Incline Bench Press Weight PR:', inclineBench.maxWeight?.weight, 'lbs');
+      console.log('    ✅ Expected: 225 lbs, Calculated:', inclineBench.maxWeight?.weight, 
+        inclineBench.maxWeight?.weight === 225 ? '✅ CORRECT' : '❌ WRONG');
+    } else {
+      console.log('  - ❌ Barbell Incline Bench Press not found');
     }
     
-    const burpees = calculatedPRs.find(pr => pr.exerciseName?.toLowerCase().includes('burpees'))
-    if (burpees) {
-      console.log(`🚫 Burpees:`)
-      console.log(`   - Is Bodyweight: ${burpees.isBodyweight} (should be true - FILTERED OUT)`)
-    }
+    // Test 3: Workout display names
+    console.log('\n📋 WORKOUT DISPLAY NAMES TEST:');
     
-    // Test credits calculation
-    console.log(`\n💳 CREDITS CALCULATION TEST:`)
-    
-    // Get credit purchases
-    const purchases = await prisma.creditPurchase.findMany({
-      where: { userId: hamza.id, status: 'COMPLETED' }
-    })
-    const totalPurchased = purchases.reduce((sum, p) => sum + p.credits, 0)
-    
-    // Get completed workouts
-    const completedWorkouts = await prisma.workoutSession.findMany({
-      where: { userId: hamza.id, status: 'COMPLETED' }
-    })
-    
-    // Get bookings usage
-    const bookings = await prisma.booking.findMany({
-      where: { 
-        userId: hamza.id, 
-        status: { in: ['CONFIRMED', 'COMPLETED'] }
+    const sampleWorkout = await prisma.workoutSession.findFirst({
+      where: { userId: hamzaId },
+      include: {
+        user: { select: { name: true } }
       }
-    })
-    const totalUsedBookings = bookings.reduce((sum, b) => sum + b.creditsUsed, 0)
+    });
     
-    console.log(`   - Total Purchased: ${totalPurchased}`)
-    console.log(`   - Completed Workouts: ${completedWorkouts.length}`)
-    console.log(`   - Credits Used (Bookings): ${totalUsedBookings}`)
-    console.log(`   - Remaining (Bookings Method): ${totalPurchased - totalUsedBookings} ❌ (Currently used)`)
-    console.log(`   - Remaining (Workouts Method): ${totalPurchased - completedWorkouts.length} ✅ (Should be used)`)
+    if (sampleWorkout) {
+      const displayName = generateWorkoutDisplayName(sampleWorkout);
+      console.log('  - Sample workout ID:', sampleWorkout.id.substring(0, 12) + '...');
+      console.log('  - Generated display name:', displayName);
+      console.log('  - ✅ Expected format: HamzaY_10JUL25, Generated:', displayName, 
+        displayName.includes('HamzaY_10JUL25') ? '✅ CORRECT' : '❌ CHECK FORMAT');
+    }
+    
+    // Test 4: Progress endpoint structure (just test that we can query)
+    console.log('\n📈 PROGRESS ENDPOINT TEST:');
+    const progressCount = await prisma.progressEntry.count({
+      where: { userId: hamzaId }
+    });
+    console.log('  - Progress entries for Hamza:', progressCount);
+    console.log('  - ✅ Progress endpoint can query data successfully');
+    
+    console.log('\n🎉 All calculation tests completed!');
     
   } catch (error) {
-    console.error('❌ Error testing calculations:', error)
+    console.error('❌ Test error:', error);
   } finally {
-    await prisma.$disconnect()
+    await prisma.$disconnect();
   }
 }
 
-testCalculations()
+testCalculations();

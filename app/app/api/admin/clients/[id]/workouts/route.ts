@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { requireAuth } from '@/lib/auth'
+import { generateWorkoutDisplayName } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -97,9 +98,25 @@ export async function GET(
       where: whereClause,
     })
 
+    // FIXED: Add meaningful workout display names to each workout
+    const workoutsWithDisplayNames = workoutSessions.map(workout => ({
+      ...workout,
+      displayName: generateWorkoutDisplayName({
+        ...workout,
+        user: client // Add client info for name generation
+      }),
+      // Ensure date is properly formatted (no offset issues)
+      date: workout.date.toISOString(),
+    }))
+
     return NextResponse.json({
       success: true,
-      data: workoutSessions,
+      data: workoutsWithDisplayNames,
+      client: {
+        id: client.id,
+        name: client.name,
+        email: client.email
+      },
       pagination: {
         total: totalCount,
         page,
