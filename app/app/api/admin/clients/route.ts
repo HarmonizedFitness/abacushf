@@ -80,20 +80,15 @@ export async function GET(request: NextRequest) {
           },
         })
 
-        // Get total credits used (bookings)
-        const creditsUsed = await prisma.booking.aggregate({
+        // FIXED: Get total credits used (completed workouts) - same logic as individual client endpoint
+        const completedWorkouts = await prisma.workoutSession.count({
           where: {
             userId: client.id,
-            status: {
-              in: ['CONFIRMED', 'COMPLETED'],
-            },
-          },
-          _sum: {
-            creditsUsed: true,
-          },
+            status: 'COMPLETED'
+          }
         })
 
-        const remainingCredits = (totalCredits._sum.credits || 0) - (creditsUsed._sum.creditsUsed || 0)
+        const remainingCredits = (totalCredits._sum.credits || 0) - completedWorkouts
 
         return {
           ...client,
