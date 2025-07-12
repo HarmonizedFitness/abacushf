@@ -118,15 +118,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
     }
 
+    // SECURITY FIX: Only admin users can create progress entries
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Only administrators can create progress entries' 
+      }, { status: 403 })
+    }
+
     const body = await request.json()
     const validatedData = progressEntrySchema.parse(body)
 
-    // Determine target user
+    // Determine target user (admin can create for any user)
     let targetUserId = user.id
-    if (validatedData.userId && user.role === 'ADMIN') {
+    if (validatedData.userId) {
       targetUserId = validatedData.userId
-    } else if (validatedData.userId && user.role === 'CLIENT') {
-      return NextResponse.json({ success: false, error: 'Unauthorized to create entries for other users' }, { status: 403 })
     }
 
     // Create progress entry

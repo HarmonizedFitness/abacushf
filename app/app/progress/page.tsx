@@ -25,7 +25,7 @@ export default function ClientProgressPage() {
     <ProtectedLayout>
       <ProgressDashboard 
         userId={session.user.id}
-        readonly={false}
+        readonly={session.user.role !== 'ADMIN'}
         showHeader={true}
       />
     </ProtectedLayout>

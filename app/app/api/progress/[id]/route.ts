@@ -44,9 +44,12 @@ export async function PUT(
       return NextResponse.json({ success: false, error: 'Progress entry not found' }, { status: 404 })
     }
 
-    // Check permissions
-    if (user.role === 'CLIENT' && existingEntry.userId !== user.id) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 403 })
+    // SECURITY FIX: Only admin users can edit progress entries
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Only administrators can edit progress entries' 
+      }, { status: 403 })
     }
 
     // Update progress entry
