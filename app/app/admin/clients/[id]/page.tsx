@@ -24,7 +24,7 @@ import { useToast } from '@/hooks/use-toast'
 import Link from 'next/link'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { useEffect, useState } from 'react'
-import { formatDate, formatTime, formatRelativeTime, formatPRDisplay, formatPRDisplayWithHighlight } from '@/lib/utils'
+import { formatDate, formatTime, formatRelativeTime, formatPRDisplay, formatPRDisplayWithHighlight, generateWorkoutDisplayName } from '@/lib/utils'
 
 interface DashboardData {
   remainingCredits: number
@@ -351,37 +351,40 @@ export default function AdminClientDashboardPage() {
               ) : (
                 <div className="space-y-4">
                   {dashboardData.recentWorkouts?.map((workout: any) => (
-                    <div
+                    <Link
                       key={workout.id}
-                      className="flex items-center justify-between p-4 bg-hf-dark rounded-lg border border-hf-card hover:bg-hf-card/50 transition-colors cursor-pointer"
+                      href={`/admin/workouts/${workout.id}`}
+                      className="block"
                     >
-                      <div className="flex-1">
-                        <p className="font-medium text-hf-text">
-                          {formatDate(workout.date)}
-                        </p>
-                        <p className="text-sm text-hf-text-secondary">
-                          {workout.exercises?.length || 0} exercises • {workout.duration} min
-                        </p>
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {workout.exercises?.slice(0, 3).map((ex: any) => (
-                            <Badge key={ex.id} variant="secondary" className="text-xs">
-                              {ex.exercise?.name}
-                            </Badge>
-                          ))}
-                          {(workout.exercises?.length || 0) > 3 && (
-                            <Badge variant="secondary" className="text-xs">
-                              +{(workout.exercises?.length || 0) - 3} more
-                            </Badge>
-                          )}
+                      <div className="flex items-center justify-between p-4 bg-hf-dark rounded-lg border border-hf-card hover:bg-hf-card/50 transition-colors cursor-pointer">
+                        <div className="flex-1">
+                          <p className="font-medium text-hf-text">
+                            {generateWorkoutDisplayName(workout)}
+                          </p>
+                          <p className="text-sm text-hf-text-secondary">
+                            {formatDate(workout.date)} • {workout.exercises?.length || 0} exercises • {workout.duration} min
+                          </p>
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {workout.exercises?.slice(0, 3).map((ex: any) => (
+                              <Badge key={ex.id} variant="secondary" className="text-xs">
+                                {ex.exercise?.name}
+                              </Badge>
+                            ))}
+                            {(workout.exercises?.length || 0) > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{(workout.exercises?.length || 0) - 3} more
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <Badge className="bg-hf-orange/10 text-hf-orange border-hf-orange/20">
+                            {workout.status}
+                          </Badge>
+                          <Edit className="h-4 w-4 text-hf-text-secondary mt-2" />
                         </div>
                       </div>
-                      <div className="text-right">
-                        <Badge className="bg-hf-orange/10 text-hf-orange border-hf-orange/20">
-                          {workout.status}
-                        </Badge>
-                        <Edit className="h-4 w-4 text-hf-text-secondary mt-2" />
-                      </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}

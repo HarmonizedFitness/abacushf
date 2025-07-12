@@ -25,7 +25,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DataTable, Column } from '@/components/common/data-table'
 import { LoadingState, EmptyState } from '@/components/common/status-message'
 import { ConfirmationDialog } from '@/components/common/confirmation-dialog'
-import { formatDate, formatDuration, getTotalExerciseCount, getAllExercises } from '@/lib/utils'
+import { formatDate, formatDuration, getTotalExerciseCount, getAllExercises, generateWorkoutDisplayName } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 import { PageHeader } from '@/components/navigation/page-header'
 import Link from 'next/link'
@@ -191,6 +191,24 @@ export default function AdminWorkoutsPage() {
           <p className="text-xs text-hf-text-secondary">{user?.email}</p>
         </div>
       ),
+    },
+    {
+      key: 'id',
+      title: 'Workout Name',
+      render: (_, workout) => {
+        const displayName = generateWorkoutDisplayName(workout)
+        return (
+          <div>
+            <Link 
+              href={`/admin/workouts/${workout.id}`}
+              className="font-medium text-hf-orange hover:text-hf-orange/80 transition-colors cursor-pointer"
+            >
+              {displayName}
+            </Link>
+            <p className="text-xs text-hf-text-secondary">ID: {workout.id.substring(0, 8)}...</p>
+          </div>
+        )
+      },
     },
     {
       key: 'date',

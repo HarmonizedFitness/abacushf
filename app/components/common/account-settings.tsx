@@ -2,7 +2,7 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, getSession } from 'next-auth/react'
 import {
   User,
   Mail,
@@ -27,6 +27,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { LoadingState } from '@/components/common/status-message'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { formatDate, getInitials } from '@/lib/utils'
 import { useToast } from '@/hooks/use-toast'
 
@@ -68,6 +69,8 @@ export function AccountSettings({
   const [editing, setEditing] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showPhotoDialog, setShowPhotoDialog] = useState(false)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -140,6 +143,12 @@ export function AccountSettings({
       if (data.success) {
         setProfile(data.data)
         setEditing(false)
+        
+        // FIXED: Refresh session to update header name display
+        if (!clientId) {
+          await getSession()
+        }
+        
         toast({
           title: 'Success',
           description: 'Profile updated successfully',
@@ -249,6 +258,76 @@ export function AccountSettings({
     setChangingPassword(false)
   }
 
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Error',
+        description: 'Please select a valid image file',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'Error',
+        description: 'Image size must be less than 5MB',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setUploadingPhoto(true)
+    try {
+      const formData = new FormData()
+      formData.append('photo', file)
+      
+      // Use different endpoint if admin is uploading for a client
+      const endpoint = clientId ? `/api/admin/clients/${clientId}/photo` : '/api/profile/photo'
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: formData,
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        setProfile(prev => prev ? { ...prev, image: data.imageUrl } : null)
+        setShowPhotoDialog(false)
+        
+        // Refresh session to update header photo
+        if (!clientId) {
+          await getSession()
+        }
+        
+        toast({
+          title: 'Success',
+          description: 'Profile photo updated successfully',
+        })
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to upload photo',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Failed to upload photo:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to upload photo',
+        variant: 'destructive',
+      })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+
   if (loading) {
     return <LoadingState message="Loading profile..." />
   }
@@ -342,10 +421,68 @@ export function AccountSettings({
             </div>
           </div>
           {editing && (
-            <Button variant="outline" size="sm">
-              <Camera className="h-4 w-4 mr-2" />
-              Change Photo
-            </Button>
+            <Dialog open={showPhotoDialog} onOpenChange={setShowPhotoDialog}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Camera className="h-4 w-4 mr-2" />
+                  Change Photo
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Update Profile Photo</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center space-y-4">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={profile?.image || `https://api.dicebear.com/7.x/initials/svg?seed=${profile?.name}`} />
+                      <AvatarFallback className="bg-gradient-orange text-white text-xl">
+                        {profile?.name ? getInitials(profile.name) : '?'}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="text-center">
+                      <p className="text-sm text-hf-text-secondary">
+                        Upload a new profile photo. Max size: 5MB
+                      </p>
+                      <p className="text-xs text-hf-text-secondary mt-1">
+                        Supported formats: JPG, PNG, GIF
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="photo-upload" className="sr-only">
+                      Choose photo
+                    </Label>
+                    <Input
+                      id="photo-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      disabled={uploadingPhoto}
+                      className="cursor-pointer"
+                    />
+                  </div>
+                  
+                  {uploadingPhoto && (
+                    <div className="flex items-center justify-center py-4">
+                      <Activity className="h-4 w-4 mr-2 animate-spin" />
+                      <span className="text-sm text-hf-text-secondary">Uploading...</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowPhotoDialog(false)}
+                      disabled={uploadingPhoto}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           )}
         </div>
 

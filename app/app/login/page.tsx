@@ -215,7 +215,6 @@ function LoginForm() {
 
             <div className="text-center">
               <p className="text-xs text-hf-text-secondary">
-                Demo account: john@doe.com / johndoe123
               </p>
             </div>
           </CardContent>

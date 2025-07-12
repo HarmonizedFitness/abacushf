@@ -452,6 +452,45 @@ export function getAllExercises(workout: any) {
   return allExercises
 }
 
+// FIXED: Generate meaningful workout filename/display name
+export function generateWorkoutDisplayName(workout: any): string {
+  if (!workout) return 'Unknown Workout'
+  
+  try {
+    // Get user name and extract last name + first initial
+    const userName = workout.user?.name || 'Unknown'
+    const nameParts = userName.trim().split(' ')
+    
+    let nameCode = 'Unknown'
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0]
+      const lastName = nameParts[nameParts.length - 1]
+      nameCode = `${lastName}${firstName.charAt(0).toUpperCase()}`
+    } else if (nameParts.length === 1) {
+      nameCode = nameParts[0].substring(0, 8) // Use first 8 chars if only one name
+    }
+    
+    // Format date as DDMMMYY (e.g., 10JUL25)
+    const workoutDate = new Date(workout.date)
+    const day = workoutDate.getDate().toString().padStart(2, '0')
+    const monthNames = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 
+                       'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+    const month = monthNames[workoutDate.getMonth()]
+    const year = workoutDate.getFullYear().toString().slice(-2)
+    
+    return `${nameCode}_${day}${month}${year}`
+  } catch (error) {
+    console.error('Error generating workout display name:', error)
+    return `Workout_${workout.id?.substring(0, 8) || 'Unknown'}`
+  }
+}
+
+// Generate workout URL slug while keeping database ID for routing
+export function generateWorkoutSlug(workout: any): string {
+  const displayName = generateWorkoutDisplayName(workout)
+  return `${workout.id}?name=${encodeURIComponent(displayName)}`
+}
+
 export function generateWorkoutIdentifier(clientName: string, date: string): string {
   if (!clientName || !date) return 'Unknown'
   
