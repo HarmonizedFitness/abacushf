@@ -21,6 +21,7 @@ import {
   Star,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -59,6 +60,12 @@ interface ProgressSummary {
   }
 }
 
+interface Client {
+  id: string
+  name: string
+  email: string
+}
+
 interface ProgressDashboardProps {
   userId?: string
   readonly?: boolean
@@ -94,6 +101,9 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [editingEntry, setEditingEntry] = useState<ProgressEntry | null>(null)
   const [chartType, setChartType] = useState<'line' | 'bar'>('line')
+  const [clients, setClients] = useState<Client[]>([])
+  const [selectedClientId, setSelectedClientId] = useState<string>('')
+  const [loadingClients, setLoadingClients] = useState(false)
   const [formData, setFormData] = useState({
     type: 'BODY_WEIGHT',
     value: '',
@@ -104,10 +114,49 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
 
   const isAdmin = session?.user?.role === 'ADMIN'
   const canEdit = !readonly && (isAdmin || !userId || userId === session?.user?.id)
+  
+  // Use selected client ID for admins, fallback to provided userId or session user ID
+  const effectiveUserId = isAdmin && selectedClientId ? selectedClientId : (userId || session?.user?.id)
 
   useEffect(() => {
+    if (isAdmin && !userId) {
+      fetchClients()
+    }
     fetchProgressData()
-  }, [selectedType, currentPage, userId])
+  }, [selectedType, currentPage, effectiveUserId, isAdmin])
+
+  const fetchClients = async () => {
+    if (!isAdmin) return
+    
+    setLoadingClients(true)
+    try {
+      const response = await fetch('/api/admin/clients')
+      const data = await response.json()
+      
+      if (data.success) {
+        setClients(data.data || [])
+        // Auto-select first client if none selected
+        if (data.data?.length > 0 && !selectedClientId) {
+          setSelectedClientId(data.data[0].id)
+        }
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to fetch clients',
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('Failed to fetch clients:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch clients',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoadingClients(false)
+    }
+  }
 
   const fetchProgressData = async () => {
     try {
@@ -120,8 +169,8 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
         params.append('type', selectedType)
       }
       
-      if (userId) {
-        params.append('userId', userId)
+      if (effectiveUserId) {
+        params.append('userId', effectiveUserId)
       }
 
       const response = await fetch(`/api/progress?${params}`)
@@ -160,7 +209,7 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
         body: JSON.stringify({
           ...formData,
           value: parseFloat(formData.value),
-          userId,
+          userId: effectiveUserId,
         }),
       })
 
@@ -404,14 +453,21 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
           {canEdit && (
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
-                <Button className="btn-gradient">
+                <Button className="btn-gradient" disabled={isAdmin && !effectiveUserId}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Add Entry
+                  {isAdmin ? 'Add Client Entry' : 'Add Entry'}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add Progress Entry</DialogTitle>
+                  <DialogTitle>
+                    Add Progress Entry
+                    {isAdmin && selectedClientId && (
+                      <span className="text-sm font-normal text-hf-text-secondary block mt-1">
+                        for {clients.find(c => c.id === selectedClientId)?.name}
+                      </span>
+                    )}
+                  </DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -481,6 +537,45 @@ export function ProgressDashboard({ userId, readonly = false, showHeader = true 
             </Dialog>
           )}
         </div>
+      )}
+
+      {/* Client Selection for Admins */}
+      {isAdmin && !userId && (
+        <Card className="bg-hf-card border-hf-card">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-hf-orange" />
+                <Label className="text-hf-text font-medium">Select Client:</Label>
+              </div>
+              <div className="flex-1 max-w-md">
+                <Select 
+                  value={selectedClientId} 
+                  onValueChange={setSelectedClientId}
+                  disabled={loadingClients}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={loadingClients ? "Loading clients..." : "Choose a client"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name} ({client.email})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedClientId && (
+                <div className="text-sm text-hf-text-secondary">
+                  Viewing progress for: <span className="text-hf-text font-medium">
+                    {clients.find(c => c.id === selectedClientId)?.name}
+                  </span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Progress Summary Cards */}

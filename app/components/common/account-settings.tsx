@@ -144,9 +144,15 @@ export function AccountSettings({
         setProfile(data.data)
         setEditing(false)
         
-        // FIXED: Refresh session to update header name display
+        // ENHANCED: Refresh session to update header name display
         if (!clientId) {
-          await getSession()
+          // Force session refresh with updated data
+          const updatedSession = await getSession()
+          // Update the session context by triggering a re-render
+          if (updatedSession) {
+            // Use router refresh to update all components with new session data
+            window.location.reload()
+          }
         }
         
         toast({
