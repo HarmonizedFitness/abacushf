@@ -3,9 +3,181 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth-config'
 import { prisma } from '@/lib/db'
-import { subDays, subMonths, subYears, format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns'
+import { subDays, subMonths, subYears, format, startOfMonth, endOfMonth, startOfDay, endOfDay, startOfWeek, endOfWeek } from 'date-fns'
 
 export const dynamic = 'force-dynamic'
+
+// Helper function to calculate client accomplishments
+async function calculateClientAccomplishments(startDate: Date, endDate: Date) {
+  try {
+    // Get top attendance achievers
+    const attendanceAchievers = await prisma.user.findMany({
+      where: {
+        role: 'CLIENT',
+        bookings: {
+          some: {
+            status: 'COMPLETED',
+            startTime: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        }
+      },
+      select: {
+        name: true,
+        bookings: {
+          where: {
+            status: 'COMPLETED',
+            startTime: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        }
+      }
+    })
+
+    const topAttendance = attendanceAchievers
+      .map(user => ({
+        name: user.name || 'Unknown',
+        sessions: user.bookings.length,
+        type: 'attendance'
+      }))
+      .sort((a, b) => b.sessions - a.sessions)
+      .slice(0, 3)
+
+    // Get personal record improvements
+    const prImprovements = await prisma.personalRecord.findMany({
+      where: {
+        achievedAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        user: {
+          select: {
+            name: true
+          }
+        },
+        exercise: {
+          select: {
+            name: true
+          }
+        }
+      },
+      orderBy: {
+        weight: 'desc'
+      },
+      take: 5
+    })
+
+    const topPRs = prImprovements.map(pr => ({
+      name: pr.user.name || 'Unknown',
+      achievement: `${pr.exercise.name}: ${pr.weight ? Number(pr.weight) : 0} lbs`,
+      type: 'personal_record',
+      value: pr.weight ? Number(pr.weight) : 0
+    }))
+
+    // Get most improved clients (based on PR increases)
+    const userPRProgress = await prisma.user.findMany({
+      where: {
+        role: 'CLIENT',
+        personalRecords: {
+          some: {
+            achievedAt: {
+              gte: startDate,
+              lte: endDate
+            }
+          }
+        }
+      },
+      select: {
+        name: true,
+        personalRecords: {
+          where: {
+            achievedAt: {
+              gte: startDate,
+              lte: endDate
+            }
+          },
+          include: {
+            exercise: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    const mostImproved = userPRProgress
+      .map(user => {
+        const totalWeight = user.personalRecords.reduce((sum, pr) => sum + (pr.weight ? Number(pr.weight) : 0), 0)
+        const avgWeight = user.personalRecords.length > 0 ? totalWeight / user.personalRecords.length : 0
+        return {
+          name: user.name || 'Unknown',
+          avgPR: Math.round(avgWeight),
+          improvements: user.personalRecords.length,
+          type: 'improvement'
+        }
+      })
+      .sort((a, b) => b.avgPR - a.avgPR)
+      .slice(0, 3)
+
+    return {
+      topAttendance,
+      topPRs,
+      mostImproved
+    }
+  } catch (error) {
+    console.error('Error calculating client accomplishments:', error)
+    return {
+      topAttendance: [],
+      topPRs: [],
+      mostImproved: []
+    }
+  }
+}
+
+// Helper function to calculate real package distribution
+async function calculatePackageDistribution(startDate: Date, endDate: Date) {
+  try {
+    const packageStats = await prisma.creditPurchase.groupBy({
+      by: ['packageName'],
+      where: {
+        status: 'COMPLETED',
+        createdAt: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      _count: {
+        packageName: true
+      },
+      _sum: {
+        amount: true
+      }
+    })
+
+    const total = packageStats.reduce((sum, pkg) => sum + pkg._count.packageName, 0)
+    
+    const colors = ['#FF8C42', '#D65A31', '#4FD1C5', '#60B5FF', '#9F7AEA', '#68D391']
+    
+    return packageStats.map((pkg, index) => ({
+      name: pkg.packageName,
+      value: total > 0 ? Math.round((pkg._count.packageName / total) * 100) : 0,
+      color: colors[index % colors.length],
+      revenue: pkg._sum.amount ? Number(pkg._sum.amount) / 100 : 0,
+      count: pkg._count.packageName
+    }))
+  } catch (error) {
+    console.error('Error calculating package distribution:', error)
+    return []
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,9 +230,10 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    // Get revenue statistics
+    // Get revenue statistics with proper filtering
     const creditPurchases = await prisma.creditPurchase.findMany({
       where: {
+        status: 'COMPLETED',
         createdAt: {
           gte: startDate,
           lte: endDate
@@ -68,6 +241,8 @@ export async function GET(request: NextRequest) {
       },
       select: {
         amount: true,
+        credits: true,
+        packageName: true,
         createdAt: true,
         user: {
           select: {
@@ -86,6 +261,7 @@ export async function GET(request: NextRequest) {
 
     // Get all-time revenue for comparison
     const allTimeCreditPurchases = await prisma.creditPurchase.findMany({
+      where: { status: 'COMPLETED' },
       select: {
         amount: true
       }
@@ -93,6 +269,43 @@ export async function GET(request: NextRequest) {
     const allTimeRevenue = allTimeCreditPurchases.reduce((sum: number, purchase: any) => {
       const amount = purchase.amount ? Number(purchase.amount) / 100 : 0
       return sum + amount
+    }, 0)
+
+    // Get completed sessions revenue (sessions that have been used/completed)
+    const completedBookings = await prisma.booking.findMany({
+      where: {
+        status: 'COMPLETED',
+        startTime: {
+          gte: startDate,
+          lte: endDate
+        }
+      },
+      include: {
+        user: {
+          select: {
+            creditPurchases: {
+              where: { status: 'COMPLETED' },
+              select: {
+                amount: true,
+                credits: true
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Calculate completed session revenue (estimate based on credits used)
+    const completedSessionRevenue = completedBookings.reduce((sum: number, booking: any) => {
+      const userPurchases = booking.user.creditPurchases
+      if (userPurchases.length > 0) {
+        // Calculate average price per credit for this user
+        const totalCredits = userPurchases.reduce((sum: number, cp: any) => sum + cp.credits, 0)
+        const totalSpent = userPurchases.reduce((sum: number, cp: any) => sum + (Number(cp.amount) / 100), 0)
+        const avgPricePerCredit = totalCredits > 0 ? totalSpent / totalCredits : 0
+        return sum + (avgPricePerCredit * booking.creditsUsed)
+      }
+      return sum
     }, 0)
 
     // Get session statistics
@@ -105,24 +318,26 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const averageSessionsPerClient = activeClients > 0 ? totalBookings / activeClients : 0
-
-    // Calculate retention rate (simplified - clients who made bookings in last 30 days)
-    const recentActiveClients = await prisma.user.count({
+    const totalCompletedSessions = await prisma.booking.count({
       where: {
-        role: 'CLIENT',
-        bookings: {
-          some: {
-            startTime: {
-              gte: subDays(now, 30),
-              lte: now
-            }
-          }
+        status: 'COMPLETED',
+        startTime: {
+          gte: startDate,
+          lte: endDate
         }
       }
     })
 
-    const retentionRate = totalClients > 0 ? (recentActiveClients / totalClients) * 100 : 0
+    const averageSessionsPerClient = activeClients > 0 ? totalBookings / activeClients : 0
+
+    // Calculate completion rate instead of retention rate
+    const completionRate = totalBookings > 0 ? (totalCompletedSessions / totalBookings) * 100 : 0
+
+    // Calculate client accomplishments (replace retention rate)
+    const clientAccomplishments = await calculateClientAccomplishments(startDate, endDate)
+
+    // Get real package distribution from completed purchases
+    const packageDistribution = await calculatePackageDistribution(startDate, endDate)
 
     // Get monthly revenue chart data
     const monthlyRevenue: any[] = []
@@ -235,7 +450,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.usage - a.usage)
       .slice(0, 8)
 
-    // Get hourly booking patterns
+    // Get hourly booking patterns - fixed logic
     const allBookings = await prisma.booking.findMany({
       where: {
         startTime: {
@@ -248,24 +463,27 @@ export async function GET(request: NextRequest) {
       }
     })
 
-    const hourlyBookings = Array.from({ length: 14 }, (_, i) => {
-      const hour = i + 6 // 6 AM to 7 PM
-      const hourString = hour <= 12 ? `${hour} AM` : `${hour - 12} PM`
-      if (hour === 12) return { hour: '12 PM', bookings: 0 }
+    // Initialize hourly booking array for 6 AM to 8 PM (15 hours)
+    const hourlyBookings = Array.from({ length: 15 }, (_, i) => {
+      const hour = i + 6 // 6 AM to 8 PM
+      let hourString: string
       
-      const bookings = allBookings.filter((booking: any) => {
-        const bookingHour = new Date(booking.startTime).getHours()
-        return bookingHour === hour
-      }).length
-
-      return { hour: hourString, bookings }
+      if (hour === 12) {
+        hourString = '12 PM'
+      } else if (hour < 12) {
+        hourString = `${hour} AM`
+      } else {
+        hourString = `${hour - 12} PM`
+      }
+      
+      return { hour: hourString, bookings: 0 }
     })
 
-    // Update hourly bookings with actual data
+    // Count bookings by hour
     allBookings.forEach((booking: any) => {
       const hour = new Date(booking.startTime).getHours()
-      const hourIndex = hour - 6
-      if (hourIndex >= 0 && hourIndex < 14) {
+      const hourIndex = hour - 6 // Convert to array index
+      if (hourIndex >= 0 && hourIndex < 15) {
         hourlyBookings[hourIndex].bookings++
       }
     })
@@ -421,18 +639,20 @@ export async function GET(request: NextRequest) {
       })
     }
 
-    // Build response
+    // Build response with real data
     const analyticsData = {
       overview: {
         totalRevenue: allTimeRevenue,
         monthlyRevenue: totalRevenue,
+        completedSessionRevenue, // New metric
         revenueGrowth,
         totalClients,
         activeClients,
         clientGrowth,
         totalSessions: totalBookings,
+        totalCompletedSessions, // New metric
         averageSessionsPerClient,
-        retentionRate,
+        completionRate, // Replaces retentionRate
         averageRevenuePerClient
       },
       revenueChart: monthlyRevenue,
@@ -450,18 +670,8 @@ export async function GET(request: NextRequest) {
       hourlyBookings,
       topPerformers,
       clientEngagement,
-      packageDistribution: [
-        { name: 'Regular (10 credits)', value: 45, color: '#FF8C42', revenue: allTimeRevenue * 0.4 },
-        { name: 'Committed (15 credits)', value: 30, color: '#D65A31', revenue: allTimeRevenue * 0.3 },
-        { name: 'Champion (25 credits)', value: 15, color: '#4FD1C5', revenue: allTimeRevenue * 0.2 },
-        { name: 'Starter (4 credits)', value: 10, color: '#60B5FF', revenue: allTimeRevenue * 0.1 },
-      ],
-      clientRetention: [
-        { cohort: 'Q1 2024', month1: 100, month3: 85, month6: 72, month12: 65 },
-        { cohort: 'Q2 2024', month1: 100, month3: 88, month6: 76, month12: 0 },
-        { cohort: 'Q3 2024', month1: 100, month3: 91, month6: 0, month12: 0 },
-        { cohort: 'Q4 2024', month1: 100, month3: 0, month6: 0, month12: 0 },
-      ]
+      packageDistribution, // Now uses real data
+      clientAccomplishments // Replaces clientRetention
     }
 
     return NextResponse.json(analyticsData)

@@ -37,13 +37,15 @@ interface AnalyticsData {
   overview: {
     totalRevenue: number
     monthlyRevenue: number
+    completedSessionRevenue: number
     revenueGrowth: number
     totalClients: number
     activeClients: number
     clientGrowth: number
     totalSessions: number
+    totalCompletedSessions: number
     averageSessionsPerClient: number
-    retentionRate: number
+    completionRate: number
     averageRevenuePerClient: number
   }
   revenueChart: Array<{
@@ -63,6 +65,7 @@ interface AnalyticsData {
     value: number
     color: string
     revenue: number
+    count: number
   }>
   exercisePopularity: Array<{
     name: string
@@ -73,13 +76,25 @@ interface AnalyticsData {
     hour: string
     bookings: number
   }>
-  clientRetention: Array<{
-    cohort: string
-    month1: number
-    month3: number
-    month6: number
-    month12: number
-  }>
+  clientAccomplishments: {
+    topAttendance: Array<{
+      name: string
+      sessions: number
+      type: string
+    }>
+    topPRs: Array<{
+      name: string
+      achievement: string
+      type: string
+      value: number
+    }>
+    mostImproved: Array<{
+      name: string
+      avgPR: number
+      improvements: number
+      type: string
+    }>
+  }
   topPerformers: Array<{
     name: string
     sessions: number
@@ -204,16 +219,16 @@ export default function AdminAnalyticsPage() {
                 icon={TrendingUp}
               />
               <StatCard
+                title="Completed Session Revenue"
+                value={formatCurrency(analyticsData?.overview.completedSessionRevenue || 0)}
+                description="Revenue from completed sessions"
+                icon={Activity}
+              />
+              <StatCard
                 title="Avg Revenue/Client"
                 value={formatCurrency(analyticsData?.overview.averageRevenuePerClient || 0)}
                 description="Per client value"
                 icon={Users}
-              />
-              <StatCard
-                title="Active Clients"
-                value={`${analyticsData?.overview.activeClients || 0}/${analyticsData?.overview.totalClients || 0}`}
-                description="Currently training"
-                icon={Target}
               />
             </div>
           </CardContent>
@@ -231,7 +246,7 @@ export default function AdminAnalyticsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
               <StatCard
                 title="Total Sessions"
                 value={analyticsData?.overview.totalSessions || 0}
@@ -239,16 +254,22 @@ export default function AdminAnalyticsPage() {
                 icon={Activity}
               />
               <StatCard
+                title="Completed Sessions"
+                value={analyticsData?.overview.totalCompletedSessions || 0}
+                description="Sessions completed"
+                icon={Target}
+              />
+              <StatCard
+                title="Completion Rate"
+                value={`${Number(analyticsData?.overview.completionRate || 0).toFixed(1)}%`}
+                description="Session completion rate"
+                icon={TrendingUp}
+              />
+              <StatCard
                 title="Avg Sessions/Client"
                 value={Number(analyticsData?.overview.averageSessionsPerClient || 0).toFixed(1)}
                 description="Per client average"
                 icon={BarChart3}
-              />
-              <StatCard
-                title="Retention Rate"
-                value={`${Number(analyticsData?.overview.retentionRate || 0).toFixed(1)}%`}
-                description="Client retention"
-                icon={Target}
               />
             </div>
           </CardContent>
@@ -431,37 +452,97 @@ export default function AdminAnalyticsPage() {
           <Card className="bg-hf-card border-hf-card">
             <CardHeader>
               <CardTitle className="text-hf-text flex items-center">
-                <TrendingUp className="h-5 w-5 mr-2 text-hf-orange" />
-                Client Retention Cohorts
+                <Trophy className="h-5 w-5 mr-2 text-hf-orange" />
+                Client Accomplishments
               </CardTitle>
               <CardDescription className="text-hf-text-secondary">
-                Retention rates by client cohorts
+                Top client achievements and personal records
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <ChartContainer height={300}>
-                {analyticsData?.clientRetention?.length ? (
-                  <>
-                    <SimpleLineChart
-                      data={analyticsData.clientRetention.map(item => ({
-                        name: item.cohort,
-                        value: item.month1
-                      }))}
-                      showTrend={true}
-                    />
-                    <div className="mt-4 text-xs text-hf-text-secondary">
-                      Showing Month 1 retention rates. Additional cohort data available in detailed reports.
+              {analyticsData?.clientAccomplishments ? (
+                <div className="space-y-6">
+                  {/* Top Attendance */}
+                  {analyticsData.clientAccomplishments.topAttendance.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-hf-text mb-3 flex items-center">
+                        <Activity className="h-4 w-4 mr-2 text-hf-success" />
+                        Highest Attendance
+                      </h4>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        {analyticsData.clientAccomplishments.topAttendance.map((client, index) => (
+                          <div key={client.name} className="p-3 bg-hf-dark rounded-lg border border-hf-card">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-hf-text">{client.name}</span>
+                              <Badge className="bg-hf-success/10 text-hf-success border-hf-success/20">
+                                #{index + 1}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-hf-text-secondary mt-1">
+                              {client.sessions} completed sessions
+                            </p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-center">
-                      <TrendingUp className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
-                      <p className="text-hf-text-secondary">No retention data available</p>
+                  )}
+
+                  {/* Top Personal Records */}
+                  {analyticsData.clientAccomplishments.topPRs.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-hf-text mb-3 flex items-center">
+                        <Target className="h-4 w-4 mr-2 text-hf-orange" />
+                        Personal Record Achievements
+                      </h4>
+                      <div className="space-y-2">
+                        {analyticsData.clientAccomplishments.topPRs.slice(0, 5).map((pr, index) => (
+                          <div key={`${pr.name}-${index}`} className="p-3 bg-hf-dark rounded-lg border border-hf-card flex items-center justify-between">
+                            <div>
+                              <span className="font-medium text-hf-text">{pr.name}</span>
+                              <p className="text-sm text-hf-text-secondary">{pr.achievement}</p>
+                            </div>
+                            <Badge className="bg-hf-orange/10 text-hf-orange border-hf-orange/20">
+                              PR
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  {/* Most Improved */}
+                  {analyticsData.clientAccomplishments.mostImproved.length > 0 && (
+                    <div>
+                      <h4 className="font-medium text-hf-text mb-3 flex items-center">
+                        <TrendingUp className="h-4 w-4 mr-2 text-hf-blue" />
+                        Most Improved
+                      </h4>
+                      <div className="grid gap-2 md:grid-cols-3">
+                        {analyticsData.clientAccomplishments.mostImproved.map((client, index) => (
+                          <div key={client.name} className="p-3 bg-hf-dark rounded-lg border border-hf-card">
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium text-hf-text">{client.name}</span>
+                              <Badge className="bg-hf-blue/10 text-hf-blue border-hf-blue/20">
+                                #{index + 1}
+                              </Badge>
+                            </div>
+                            <p className="text-sm text-hf-text-secondary mt-1">
+                              Avg PR: {client.avgPR} lbs ({client.improvements} improvements)
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-48">
+                  <div className="text-center">
+                    <Trophy className="h-12 w-12 mx-auto mb-4 text-hf-text-secondary" />
+                    <p className="text-hf-text-secondary">No accomplishments data available</p>
                   </div>
-                )}
-              </ChartContainer>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
