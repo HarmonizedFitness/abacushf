@@ -6,6 +6,24 @@ const prisma = new PrismaClient()
 
 async function main() {
   console.log('🌱 Starting database seeding...')
+  
+  // Environment check - prevent accidental seeding in production
+  const isProduction = process.env.NODE_ENV === 'production'
+  const forceProductionSeed = process.env.FORCE_PRODUCTION_SEED === 'true'
+  
+  if (isProduction && !forceProductionSeed) {
+    console.log('⚠️  PRODUCTION ENVIRONMENT DETECTED!')
+    console.log('⚠️  This seed file contains demo data and should not be run in production.')
+    console.log('⚠️  Use scripts/seed-production.ts for production seeding.')
+    console.log('⚠️  To force run this demo seed in production, set FORCE_PRODUCTION_SEED=true')
+    process.exit(0)
+  }
+
+  if (isProduction) {
+    console.log('🔒 WARNING: Running DEMO SEED in production environment!')
+  } else {
+    console.log('🔧 DEVELOPMENT MODE: Creating demo dataset')
+  }
 
   // Hash passwords
   const hashedPassword = await bcrypt.hash('johndoe123', 12)
