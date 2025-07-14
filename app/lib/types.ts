@@ -262,73 +262,7 @@ export type PaymentStatus = 'PENDING' | 'COMPLETED' | 'FAILED' | 'REFUNDED'
 export type WorkoutStatus = 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'SKIPPED'
 export type NotificationStatus = 'UNREAD' | 'READ' | 'ARCHIVED'
 
-// Google Calendar Integration Types
-export interface GoogleCalendarEvent {
-  id?: string
-  summary: string
-  description?: string
-  start: {
-    dateTime: string
-    timeZone: string
-  }
-  end: {
-    dateTime: string
-    timeZone: string
-  }
-  attendees?: Array<{
-    email: string
-    displayName?: string
-  }>
-  reminders?: {
-    useDefault: boolean
-    overrides?: Array<{
-      method: 'email' | 'popup'
-      minutes: number
-    }>
-  }
-}
 
-export interface AvailabilitySlot {
-  start: Date
-  end: Date
-  isAvailable: boolean
-  reason?: string
-}
-
-export interface WorkingHours {
-  dayOfWeek: number
-  startTime: string
-  endTime: string
-  isActive: boolean
-}
-
-export interface BreakTime {
-  name: string
-  startTime: string
-  endTime: string
-  dayOfWeek?: number
-  isRecurring: boolean
-}
-
-export interface BlackoutPeriod {
-  start: Date
-  end: Date
-  reason?: string
-  isRecurring: boolean
-}
-
-export interface CalendarSyncResult {
-  success: boolean
-  eventId?: string
-  error?: string
-  operation: 'CREATE' | 'UPDATE' | 'DELETE' | 'SYNC'
-}
-
-export interface AvailabilitySettings {
-  workingHours: WorkingHours[]
-  breaks: BreakTime[]
-  blackoutPeriods: BlackoutPeriod[]
-}
 
 // Database-aligned types
 export type SyncStatus = 'PENDING' | 'SYNCED' | 'FAILED' | 'CONFLICT'

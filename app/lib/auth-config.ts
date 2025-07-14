@@ -1,8 +1,6 @@
 
 import { NextAuthOptions } from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
-import GoogleProvider from 'next-auth/providers/google'
-import GitHubProvider from 'next-auth/providers/github'
 import { PrismaAdapter } from '@next-auth/prisma-adapter'
 import { prisma } from '@/lib/db'
 import bcrypt from 'bcryptjs'
@@ -52,70 +50,19 @@ export const authOptions: NextAuthOptions = {
         }
       },
     }),
-
-    // Google OAuth Provider
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-    }),
-
-    // GitHub OAuth Provider
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID || '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
-    }),
   ],
 
   session: {
     strategy: 'jwt',
-    maxAge: 60 * 60, // 1 hour session duration
+    maxAge: 30 * 24 * 60 * 60, // 30 days session duration
   },
 
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user }) {
       // Add user role to token
       if (user) {
         token.role = user.role
         token.userId = user.id
-      }
-
-      // Handle OAuth sign-in
-      if (account && account.type === 'oauth') {
-        // Check if user exists in our database
-        const existingUser = await prisma.user.findUnique({
-          where: { email: token.email! },
-        })
-
-        if (!existingUser) {
-          // Create new user for OAuth
-          const newUser = await prisma.user.create({
-            data: {
-              email: token.email!,
-              name: token.name!,
-              password: '', // OAuth users don't have password
-              role: 'CLIENT', // Default role
-              image: token.picture,
-              isActive: true,
-            },
-          })
-
-          token.role = newUser.role
-          token.userId = newUser.id
-
-          // Create welcome notification
-          await prisma.notification.create({
-            data: {
-              userId: newUser.id,
-              type: 'WELCOME',
-              title: 'Welcome to Harmonized Fitness! 💪',
-              message: 'We\'re excited to help you achieve your fitness goals. Complete your profile to get started.',
-              isRead: false,
-            },
-          })
-        } else {
-          token.role = existingUser.role
-          token.userId = existingUser.id
-        }
       }
 
       return token
@@ -135,17 +82,8 @@ export const authOptions: NextAuthOptions = {
     },
 
     async signIn({ user, account, profile }) {
-      // Allow all credential sign-ins
-      if (account?.type === 'credentials') {
-        return true
-      }
-
-      // Allow OAuth sign-ins
-      if (account?.type === 'oauth') {
-        return true
-      }
-
-      return false
+      // Allow credentials sign-ins
+      return account?.type === 'credentials'
     },
 
     async redirect({ url, baseUrl }) {

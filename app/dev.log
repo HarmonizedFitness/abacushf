@@ -5,14 +5,21 @@
     · outputFileTracingRoot
 
  ✓ Starting...
- ✓ Ready in 2.8s
- ✓ Compiled /middleware in 234ms (174 modules)
- ✓ Compiled /api/auth/[...nextauth] in 477ms (274 modules)
+ ✓ Ready in 1948ms
+ ○ Compiling /middleware ...
+ ✓ Compiled /middleware in 1219ms (174 modules)
+ ○ Compiling / ...
+ ✓ Compiled / in 4.9s (685 modules)
+ GET / 200 in 5406ms
+ ✓ Compiled in 590ms (332 modules)
+ GET / 200 in 109ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1242ms (588 modules)
 [next-auth][warn][DEBUG_ENABLED] 
 https://next-auth.js.org/warnings#debug_enabled
- POST /api/auth/callback/credentials 200 in 1151ms
- ○ Compiling / ...
- ✓ Compiled / in 2.7s (679 modules)
- GET / 200 in 3121ms
- ✓ Compiled in 487ms (332 modules)
+ GET /api/auth/session 200 in 2150ms
+ GET /api/auth/session 200 in 55ms
+ GET /api/auth/session 200 in 39ms
+ GET /api/auth/session 200 in 37ms
+ POST /api/auth/signin/credentials 302 in 46ms
 [?25h
