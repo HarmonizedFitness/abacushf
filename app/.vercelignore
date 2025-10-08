@@ -1,0 +1,62 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+.pnpm-debug.log
+
+# Testing
+coverage
+.nyc_output
+*.test.js
+*.test.ts
+test-*.js
+
+# Development files
+*.log
+dev.log
+.env.local
+.env.development.local
+.env.test.local
+
+# Build artifacts
+.next
+out
+dist
+build
+.vercel
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation (optional - remove if you want docs deployed)
+*.md
+!README.md
+*.pdf
+
+# Scripts
+scripts/
+check-*.js
+debug-*.js
+fix-*.js
+test-*.js
+quick-verification.js
+final-verification.js
+
+# Database
+*.db
+*.sqlite
+prisma/migrations/
+
+# Misc
+.git
+.gitignore
+tsconfig.tsbuildinfo
